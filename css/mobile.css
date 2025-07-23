@@ -23,11 +23,17 @@
     
     .container {
         padding: 15px;
+        max-width: 100%;
     }
     
     .address-section,
     .progress-section {
         padding: 20px;
+    }
+    
+    /* Ensure status section is properly hidden on mobile when needed */
+    .status-section.hidden {
+        display: none !important;
     }
     
     /* Keep same responsive layout as larger screens */
@@ -477,7 +483,8 @@
     /* Ensure container fits within viewport */
     .container {
         min-height: 100vh;
-        height: 100vh;
+        min-height: -webkit-fill-available;
+        height: calc(var(--vh, 1vh) * 100);
         overflow: hidden;
         padding: 10px; /* Reduce padding to save space */
     }
@@ -509,6 +516,24 @@
     .progress-bar {
         min-height: 200px; /* Reduced height for Safari */
     }
+    
+    /* Ensure status section is properly hidden when needed */
+    .status-section.hidden {
+        display: none !important;
+    }
+}
+
+/* Safe area support for modern devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .container {
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+    
+    .header {
+        padding-top: env(safe-area-inset-top);
+    }
 }
 
 /* Additional Safari detection for older versions */
@@ -527,6 +552,7 @@
     
     .container {
         padding: 8px;
+        height: calc(var(--vh, 1vh) * 100);
     }
     
     .address-section,
@@ -572,6 +598,7 @@
     
     .container {
         padding: 5px;
+        height: calc(var(--vh, 1vh) * 100);
     }
     
     .address-section,
@@ -608,6 +635,8 @@
         background: #1e1e1e;
         color: #ffffff;
         border: 1px solid #333333;
+        margin-left: 10px;
+        margin-right: 10px;
     }
     
     /* Input fields */

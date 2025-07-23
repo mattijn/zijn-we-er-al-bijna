@@ -26,6 +26,7 @@ class TripApp {
             this.setupCallbacks();
             this.checkGeolocationSupport();
             this.loadSavedTrip();
+            this.setupViewportHeight();
             
             this.isInitialized = true;
             console.log('Trip app initialized successfully');
@@ -104,6 +105,9 @@ class TripApp {
         window.addEventListener('beforeunload', () => {
             this.saveCurrentTrip();
         });
+        
+        // Initial status section visibility check
+        this.updateStatusSectionVisibility();
     }
 
     /**
@@ -238,12 +242,18 @@ class TripApp {
     handleBackToSetup() {
         const addressSection = document.getElementById('address-section');
         const progressSection = document.getElementById('progress-section');
+        const statusSection = document.getElementById('status-section');
         const isCollapsed = addressSection.classList.contains('collapsed');
         
         if (isCollapsed) {
             // Show address section
             addressSection.classList.remove('collapsed');
             this.backToSetupButton.classList.add('active');
+            
+            // Hide status section to save space
+            if (statusSection) {
+                statusSection.classList.add('hidden');
+            }
             
             // Make progress section compact
             if (progressSection) {
@@ -278,6 +288,9 @@ class TripApp {
                 progressSection.classList.remove('compact');
             }
         }
+        
+        // Update status section visibility
+        this.updateStatusSectionVisibility();
     }
 
     /**
@@ -331,6 +344,12 @@ class TripApp {
             addressSection.classList.add('collapsed');
         }
         
+        // Show status section when address section is collapsed
+        const statusSection = document.getElementById('status-section');
+        if (statusSection) {
+            statusSection.classList.remove('hidden');
+        }
+        
         // Ensure progress section is full size
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
@@ -360,11 +379,20 @@ class TripApp {
             addressSection.classList.remove('collapsed');
         }
         
+        // Hide status section when address section is expanded
+        const statusSection = document.getElementById('status-section');
+        if (statusSection) {
+            statusSection.classList.add('hidden');
+        }
+        
         // Ensure progress section is full size
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
             progressSection.classList.remove('compact');
         }
+        
+        // Update status section visibility
+        this.updateStatusSectionVisibility();
         
         this.showSuccess('Reis gestopt');
     }
@@ -391,11 +419,20 @@ class TripApp {
             addressSection.classList.remove('collapsed');
         }
         
+        // Hide status section when address section is expanded
+        const statusSection = document.getElementById('status-section');
+        if (statusSection) {
+            statusSection.classList.add('hidden');
+        }
+        
         // Ensure progress section is full size
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
             progressSection.classList.remove('compact');
         }
+        
+        // Update status section visibility
+        this.updateStatusSectionVisibility();
     }
 
     /**
@@ -561,6 +598,52 @@ class TripApp {
     }
 
     /**
+     * Setup dynamic viewport height for Safari compatibility
+     */
+    setupViewportHeight() {
+        const setViewportHeight = () => {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            console.log('Viewport height updated:', vh * 100, 'px');
+        };
+
+        // Set initial viewport height
+        setViewportHeight();
+
+        // Update on resize and orientation change
+        window.addEventListener('resize', setViewportHeight);
+        window.addEventListener('orientationchange', () => {
+            // Delay to ensure orientation change is complete
+            setTimeout(setViewportHeight, 100);
+        });
+
+        // Update on Safari-specific events
+        if ('visualViewport' in window) {
+            window.visualViewport.addEventListener('resize', setViewportHeight);
+        }
+    }
+
+    /**
+     * Update status section visibility based on address section state
+     */
+    updateStatusSectionVisibility() {
+        const addressSection = document.getElementById('address-section');
+        const statusSection = document.getElementById('status-section');
+        
+        if (addressSection && statusSection) {
+            const isAddressCollapsed = addressSection.classList.contains('collapsed');
+            
+            if (isAddressCollapsed) {
+                // Address section is collapsed (trip active), show status
+                statusSection.classList.remove('hidden');
+            } else {
+                // Address section is expanded (editing), hide status
+                statusSection.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
      * Get app status
      */
     getStatus() {
@@ -569,7 +652,9 @@ class TripApp {
             isTripActive: window.progressTracker.isTripActive(),
             hasGeolocation: window.geolocationManager.isSupported(),
             currentPosition: window.geolocationManager.getCurrentPositionSync(),
-            wakeLockActive: this.wakeLock !== null
+            wakeLockActive: this.wakeLock !== null,
+            viewportHeight: window.innerHeight,
+            cssViewportHeight: getComputedStyle(document.documentElement).getPropertyValue('--vh')
         };
     }
 }
