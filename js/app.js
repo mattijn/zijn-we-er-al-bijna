@@ -11,6 +11,7 @@ class TripApp {
         this.resetButton = null;
         this.destinationInput = null;
         this.nextStopInput = null;
+        this.wakeLock = null;
         
         this.init();
     }
@@ -165,6 +166,9 @@ class TripApp {
             
             await window.progressTracker.startTrip(destination, nextStop);
             
+            // Request wake lock to prevent device sleep
+            await this.requestWakeLock();
+            
             this.hideLoading();
             this.updateUIForActiveTrip();
             this.showSuccess('Reis gestart! Je locatie wordt nu bijgehouden.');
@@ -182,6 +186,7 @@ class TripApp {
         if (window.progressTracker.isTripActive()) {
             if (confirm('Weet je zeker dat je de reis wilt stoppen?')) {
                 window.progressTracker.stopTrip();
+                this.releaseWakeLock();
                 this.updateUIForStoppedTrip(); // Preserve input values when stopping
             } else {
                 return;
@@ -189,6 +194,7 @@ class TripApp {
         } else {
             // If no active trip, this is a true reset - clear everything
             window.progressTracker.resetTrip();
+            this.releaseWakeLock();
             this.updateUIForInactiveTrip(); // Clear input fields for reset
             window.tripStorage.clearTripData();
             this.showSuccess('Reis gereset');
@@ -293,6 +299,9 @@ class TripApp {
         
         // Clear current trip data
         window.tripStorage.clearTripData();
+        
+        // Release wake lock
+        this.releaseWakeLock();
         
         // Update UI
         this.updateUIForInactiveTrip();
@@ -408,6 +417,11 @@ class TripApp {
                 (position) => window.progressTracker.updateProgress(position),
                 (error) => window.progressTracker.handleLocationError(error)
             );
+            
+            // Re-request wake lock if it was lost
+            if (!this.wakeLock) {
+                this.requestWakeLock();
+            }
         }
     }
 
@@ -516,6 +530,37 @@ class TripApp {
     }
 
     /**
+     * Request wake lock to prevent device sleep
+     */
+    async requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake lock acquired');
+                
+                // Handle wake lock release
+                this.wakeLock.addEventListener('release', () => {
+                    console.log('Wake lock released');
+                    this.wakeLock = null;
+                });
+            }
+        } catch (error) {
+            console.log('Wake lock not supported or denied:', error);
+        }
+    }
+
+    /**
+     * Release wake lock
+     */
+    releaseWakeLock() {
+        if (this.wakeLock) {
+            this.wakeLock.release();
+            this.wakeLock = null;
+            console.log('Wake lock released manually');
+        }
+    }
+
+    /**
      * Get app status
      */
     getStatus() {
@@ -523,7 +568,8 @@ class TripApp {
             isInitialized: this.isInitialized,
             isTripActive: window.progressTracker.isTripActive(),
             hasGeolocation: window.geolocationManager.isSupported(),
-            currentPosition: window.geolocationManager.getCurrentPositionSync()
+            currentPosition: window.geolocationManager.getCurrentPositionSync(),
+            wakeLockActive: this.wakeLock !== null
         };
     }
 }

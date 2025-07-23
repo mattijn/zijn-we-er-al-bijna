@@ -97,8 +97,8 @@ class ProgressTracker {
             (this.tripData.distanceTraveled / this.tripData.totalDistance) * 100
         ));
 
-        // Check if we've reached the destination (within 500 meters)
-        if (remainingDistance <= 0.5) {
+        // Check if we've reached the destination (within 50 meters)
+        if (remainingDistance <= 0.05) {
             this.completeTrip();
         }
 
@@ -230,8 +230,8 @@ class ProgressTracker {
             progressIndicatorNextStop.style.bottom = `${progressToNextStop}%`;
         }
 
-        // Check if we've reached the next stop (within 500 meters)
-        if (distanceToNextStop <= 0.5) {
+        // Check if we've reached the next stop (within 50 meters)
+        if (distanceToNextStop <= 0.05) {
             this.handleNextStopReached();
         }
     }
@@ -483,6 +483,15 @@ class ProgressTracker {
             // Update the origin for next stop progress to current position
             // (but keep original origin for main destination progress)
             this.tripData.nextStopOrigin = currentPosition;
+            
+            // Reset next stop progress bar to 0% since we're starting from new origin
+            const progressFillNextStop = document.getElementById('progress-fill-nextstop');
+            const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
+            
+            if (progressFillNextStop && progressIndicatorNextStop) {
+                progressFillNextStop.style.height = '0%';
+                progressIndicatorNextStop.style.bottom = '0%';
+            }
             
             // Update display
             this.updateNextStopProgress();

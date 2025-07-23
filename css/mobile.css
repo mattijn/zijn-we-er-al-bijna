@@ -462,6 +462,39 @@
     }
 }
 
+/* Safari-specific adjustments */
+@supports (-webkit-touch-callout: none) {
+    /* Remove header margin-bottom on Safari to prevent page overflow */
+    .header {
+        margin-bottom: 0;
+    }
+    
+    /* Ensure container fits within viewport */
+    .container {
+        min-height: 100vh;
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    /* Adjust main content to fit better */
+    .main-content {
+        flex: 1;
+        overflow: hidden;
+    }
+    
+    /* Ensure progress section doesn't overflow */
+    .progress-section {
+        overflow: hidden;
+    }
+}
+
+/* Additional Safari detection for older versions */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    _::-webkit-full-page-media, _:future, :root .header {
+        margin-bottom: 0;
+    }
+}
+
 /* High DPI displays */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
     .progress-bar {
