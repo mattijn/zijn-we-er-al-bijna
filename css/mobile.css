@@ -41,6 +41,16 @@
         display: none !important;
     }
     
+    .input-group {
+        margin-bottom: 5px;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+    }
+    
     /* Keep same responsive layout as larger screens */
     .progress-layout {
         gap: 20px; /* Reduce gap for mobile */
@@ -345,18 +355,26 @@
     
     .address-section,
     .progress-section {
-        padding: 12px;
+        padding: 8px; /* Reduced from 12px to save more space */
     }
     
     .button-group {
-        flex-direction: column;
+        flex-direction: row; /* Side by side instead of stacked */
         gap: 8px; /* Reduced gap */
+        justify-content: center;
     }
     
     .btn {
-        padding: 12px 16px; /* Smaller padding for very small screens */
-        min-height: 44px; /* Smaller height */
-        font-size: 1rem; /* Smaller font */
+        padding: 10px 14px;
+        min-height: 40px;
+        font-size: 0.9rem;
+        flex: 1;
+        max-width: 130px;
+    }
+    
+    .address-input {
+        padding: 12px; /* Reduced from 18px to save space */
+        font-size: 1rem; /* Slightly smaller font */
     }
     
     .progress-column {
