@@ -117,19 +117,20 @@
     }
 }
 
-/* Very small screens */
+/* iPhone 13 mini and similar small screens */
 @media (max-width: 375px) {
     .title {
-        font-size: 1.8rem;
+        font-size: 1.6rem; /* Smaller title to prevent wrapping */
+        line-height: 1.2;
     }
     
     .container {
-        padding: 10px;
+        padding: 8px;
     }
     
     .address-section,
     .progress-section {
-        padding: 15px;
+        padding: 12px;
     }
     
     .button-group {
@@ -138,54 +139,64 @@
     }
     
     .progress-column {
-        flex: 1.7; /* Same as desktop */
+        flex: 1.5; /* Reduce flex to give more space */
     }
     
     .stats-column {
-        flex: 0.3; /* Same as desktop */
+        flex: 0.5; /* Increase stats column width */
     }
     
     .progress-bar {
-        width: 60px; /* Same as desktop */
-        min-height: 300px; /* Same as desktop */
+        width: 50px; /* Smaller progress bar */
+        min-height: 280px;
     }
     
     .progress-labels-vertical {
-        left: -80px; /* Same as desktop */
-        min-height: 300px; /* Same as desktop */
+        left: -60px; /* Bring labels closer */
+        min-height: 280px;
+        width: 50px; /* Match progress bar width */
     }
     
     .progress-labels-right {
         left: auto;
-        right: -80px; /* Preserve right positioning for second progress bar */
+        right: -60px; /* Bring right labels closer */
+    }
+    
+    .progress-labels-vertical .label {
+        padding: 3px 0;
+        font-size: 0.75rem; /* Smaller label text */
+    }
+    
+    .label-text {
+        font-size: 0.7rem; /* Smaller label text */
     }
     
     .stats-card {
-        padding: 8px;
-        gap: 4px;
-        max-width: 120px;
+        padding: 6px;
+        gap: 3px;
+        max-width: 100px;
     }
     
     .stat-item {
-        gap: 4px;
-        padding: 3px 0;
+        gap: 3px;
+        padding: 2px 0;
     }
     
     .stat-icon {
-        font-size: 1.2rem; /* Keep same as larger mobile screens */
-        width: 30px; /* Keep same as larger mobile screens */
+        font-size: 1rem;
+        width: 25px;
     }
     
     .stat-label {
-        font-size: 0.8rem; /* Keep same as larger mobile screens */
+        font-size: 0.7rem;
     }
     
     .stat-value {
-        font-size: 1rem; /* Keep same as larger mobile screens */
+        font-size: 0.9rem;
     }
 }
 
-/* Extra small screens */
+/* iPhone SE and very small screens */
 @media (max-width: 320px) {
     .progress-column {
         flex: 1.7; /* Same as desktop */
