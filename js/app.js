@@ -182,15 +182,17 @@ class TripApp {
         if (window.progressTracker.isTripActive()) {
             if (confirm('Weet je zeker dat je de reis wilt stoppen?')) {
                 window.progressTracker.stopTrip();
+                this.updateUIForStoppedTrip(); // Preserve input values when stopping
             } else {
                 return;
             }
+        } else {
+            // If no active trip, this is a true reset - clear everything
+            window.progressTracker.resetTrip();
+            this.updateUIForInactiveTrip(); // Clear input fields for reset
+            window.tripStorage.clearTripData();
+            this.showSuccess('Reis gereset');
         }
-
-        window.progressTracker.resetTrip();
-        this.updateUIForInactiveTrip();
-        window.tripStorage.clearTripData();
-        this.showSuccess('Reis gereset');
     }
 
     /**
@@ -328,7 +330,38 @@ class TripApp {
     }
 
     /**
-     * Update UI for inactive trip
+     * Update UI for stopped trip (preserves input values)
+     */
+    updateUIForStoppedTrip() {
+        this.startButton.disabled = false;
+        this.startButton.textContent = '🚀 Start Reis';
+        this.destinationInput.disabled = false;
+        this.nextStopInput.disabled = false;
+        this.resetButton.textContent = '🔄 Reset';
+        this.backToSetupButton.classList.add('hidden');
+        this.backToSetupButton.classList.remove('active');
+        
+        // Preserve input values (don't clear them)
+        // this.destinationInput.value = ''; // Keep current value
+        // this.nextStopInput.value = ''; // Keep current value
+        
+        // Expand address section
+        const addressSection = document.getElementById('address-section');
+        if (addressSection) {
+            addressSection.classList.remove('collapsed');
+        }
+        
+        // Ensure progress section is full size
+        const progressSection = document.getElementById('progress-section');
+        if (progressSection) {
+            progressSection.classList.remove('compact');
+        }
+        
+        this.showSuccess('Reis gestopt');
+    }
+
+    /**
+     * Update UI for inactive trip (clears input values)
      */
     updateUIForInactiveTrip() {
         this.startButton.disabled = false;

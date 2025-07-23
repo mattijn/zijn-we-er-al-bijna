@@ -107,7 +107,7 @@ class GeolocationManager {
     }
 
     /**
-     * Geocode an address using OpenStreetMap Nominatim API
+     * Geocode an address using a reliable geocoding service
      */
     async geocodeAddress(address) {
         if (!address || address.trim() === '') {
@@ -115,37 +115,66 @@ class GeolocationManager {
         }
 
         const encodedAddress = encodeURIComponent(address.trim());
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`;
-
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'ZijnWeErAlBijna/1.0'
+        
+        // Try multiple geocoding services for better reliability
+        const services = [
+            // Service 1: OpenStreetMap with a more reliable CORS proxy
+            {
+                url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`)}`,
+                parser: (data) => {
+                    if (data.length === 0) throw new Error('Address not found');
+                    const result = data[0];
+                    return {
+                        lat: parseFloat(result.lat),
+                        lng: parseFloat(result.lon),
+                        displayName: result.display_name,
+                        address: result.address
+                    };
                 }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            },
+            // Service 2: Alternative geocoding service
+            {
+                url: `https://geocode.maps.co/search?q=${encodedAddress}`,
+                parser: (data) => {
+                    if (data.length === 0) throw new Error('Address not found');
+                    const result = data[0];
+                    return {
+                        lat: parseFloat(result.lat),
+                        lng: parseFloat(result.lon),
+                        displayName: result.display_name || `${address}, Netherlands`,
+                        address: result.address || address
+                    };
+                }
             }
+        ];
 
-            const data = await response.json();
+        // Try each service until one works
+        for (const service of services) {
+            try {
+                const response = await fetch(service.url, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
 
-            if (data.length === 0) {
-                throw new Error('Address not found');
+                if (!response.ok) {
+                    continue; // Try next service
+                }
+
+                const data = await response.json();
+                const result = service.parser(data);
+                
+                console.log('Geocoding successful:', result);
+                return result;
+                
+            } catch (error) {
+                console.log(`Geocoding service failed:`, error.message);
+                continue; // Try next service
             }
-
-            const result = data[0];
-            return {
-                lat: parseFloat(result.lat),
-                lng: parseFloat(result.lon),
-                displayName: result.display_name,
-                address: result.address
-            };
-        } catch (error) {
-            console.error('Geocoding error:', error);
-            throw new Error(`Could not find address: ${error.message}`);
         }
+
+        // If all services fail, throw an error
+        throw new Error(`Could not find address: ${address}. Please try a different address or check your internet connection.`);
     }
 
     /**

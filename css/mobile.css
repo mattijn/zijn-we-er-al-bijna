@@ -28,45 +28,50 @@
     
     /* Keep same responsive layout as larger screens */
     .progress-layout {
-        gap: 40px; /* Same as desktop */
+        gap: 20px; /* Reduce gap for mobile */
     }
     
     .progress-column {
-        flex: 1.7; /* Same as desktop */
+        flex: 1.6; /* Slightly reduce to give more space */
     }
     
     .stats-column {
-        flex: 0.3; /* Same as desktop */
+        flex: 0.4; /* Increase stats column width */
     }
     
     /* Ensure progress bar fits well on mobile */
     .progress-bar {
-        width: 60px; /* Same as desktop */
-        min-height: 300px; /* Same as desktop */
+        width: 55px; /* Slightly smaller for mobile */
+        min-height: 280px;
     }
     
     .progress-labels-vertical {
-        left: -80px; /* Same as desktop */
-        min-height: 300px; /* Same as desktop */
+        left: -70px; /* Balance between off-screen and overlap */
+        min-height: 280px;
+        width: 55px; /* Match progress bar width */
     }
     
     .progress-labels-right {
         left: auto;
-        right: -80px; /* Preserve right positioning for second progress bar */
+        right: -70px; /* Balance between off-screen and overlap */
     }
     
     .progress-labels-vertical .label {
-        padding: 5px 0; /* Same as desktop */
+        padding: 4px 0; /* Slightly less padding for mobile */
+    }
+    
+    .label-text {
+        font-size: 0.8rem; /* Smaller text for mobile */
     }
     
     .car-icon {
-        font-size: 2rem; /* Same as desktop */
+        font-size: 1.8rem; /* Slightly smaller for mobile */
     }
     
     .stats-card {
-        padding: 12px;
-        gap: 8px;
-        max-width: 150px;
+        padding: 10px;
+        gap: 6px;
+        max-width: 130px;
     }
     
     .stat-item {
@@ -85,6 +90,75 @@
     
     .stat-value {
         font-size: 1rem;
+    }
+}
+
+/* Medium mobile screens (around 575px) */
+@media (max-width: 600px) {
+    .title {
+        font-size: 1.8rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    
+    .progress-layout {
+        gap: 15px;
+    }
+    
+    .progress-column {
+        flex: 1.5;
+    }
+    
+    .stats-column {
+        flex: 0.5;
+    }
+    
+    .progress-bar {
+        width: 50px;
+        min-height: 260px;
+    }
+    
+    .progress-labels-vertical {
+        left: -70px;
+        min-height: 260px;
+        width: 50px;
+    }
+    
+    .progress-labels-right {
+        left: auto;
+        right: -70px;
+    }
+    
+    .progress-labels-vertical .label {
+        padding: 3px 0;
+    }
+    
+    .label-text {
+        font-size: 0.75rem;
+    }
+    
+    .stats-card {
+        padding: 8px;
+        gap: 4px;
+        max-width: 110px;
+    }
+    
+    .stat-item {
+        gap: 4px;
+        padding: 3px 0;
+    }
+    
+    .stat-icon {
+        font-size: 1rem;
+        width: 25px;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    .stat-value {
+        font-size: 0.9rem;
     }
 }
 
@@ -117,11 +191,137 @@
     }
 }
 
-/* iPhone 13 mini and similar small screens */
+/* Extra small screens - icons above progress bars */
+@media (max-width: 480px) {
+    .title {
+        font-size: 1.7rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    
+    .progress-layout {
+        gap: 15px;
+    }
+    
+    .progress-column {
+        flex: 1.4;
+    }
+    
+    .stats-column {
+        flex: 0.6;
+    }
+    
+    .progress-bar {
+        width: 45px;
+        min-height: 250px;
+    }
+    
+    /* Reduce gap between progress bars on small screens */
+    .progress-bars-container {
+        gap: 30px;
+    }
+    
+    /* Hide vertical labels and show horizontal labels above */
+    .progress-labels-vertical {
+        display: none !important;
+    }
+    
+    /* Ensure next stop progress bar still shows up */
+    .next-stop-progress.visible {
+        display: flex !important;
+        opacity: 1;
+        transform: scale(1);
+    }
+    
+    /* Force hide vertical labels on small screens, even for visible next stop progress */
+    .next-stop-progress.visible .progress-labels-vertical {
+        display: none !important;
+    }
+    
+    /* Add horizontal labels above progress bars */
+    .progress-bar-wrapper::before {
+        content: '';
+        display: block;
+        height: 30px;
+        margin-bottom: 10px;
+    }
+    
+    .progress-bar-wrapper {
+        position: relative;
+    }
+    
+    .progress-bar-wrapper::after {
+        content: '';
+        display: block;
+        height: 30px;
+        margin-top: 10px;
+    }
+    
+    /* Destination progress bar labels */
+    .progress-bar-wrapper:not(.next-stop-progress)::before {
+        content: '🏁';
+        font-size: 1.2rem;
+        text-align: center;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .progress-bar-wrapper:not(.next-stop-progress)::after {
+        content: '📍';
+        font-size: 1.2rem;
+        text-align: center;
+        display: block;
+        margin-top: 5px;
+    }
+    
+    /* Next stop progress bar labels */
+    .progress-bar-wrapper.next-stop-progress::before {
+        content: '⏸️';
+        font-size: 1.2rem;
+        text-align: center;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .progress-bar-wrapper.next-stop-progress::after {
+        content: '📍';
+        font-size: 1.2rem;
+        text-align: center;
+        display: block;
+        margin-top: 5px;
+    }
+    
+    .stats-card {
+        padding: 8px;
+        gap: 4px;
+        max-width: 90px;
+    }
+    
+    .stat-item {
+        gap: 3px;
+        padding: 2px 0;
+    }
+    
+    .stat-icon {
+        font-size: 0.9rem;
+        width: 20px;
+    }
+    
+    .stat-label {
+        font-size: 0.65rem;
+    }
+    
+    .stat-value {
+        font-size: 0.8rem;
+    }
+}
+
+/* iPhone 13 mini and similar small screens - icons only next to bars */
 @media (max-width: 375px) {
     .title {
         font-size: 1.6rem; /* Smaller title to prevent wrapping */
         line-height: 1.2;
+        white-space: nowrap;
     }
     
     .container {
@@ -151,24 +351,24 @@
         min-height: 280px;
     }
     
+    /* Reduce gap between progress bars on very small screens */
+    .progress-bars-container {
+        gap: 25px;
+    }
+    
+    /* Hide vertical labels on small screens, show only top/bottom labels */
     .progress-labels-vertical {
-        left: -60px; /* Bring labels closer */
-        min-height: 280px;
-        width: 50px; /* Match progress bar width */
+        display: none !important;
     }
     
-    .progress-labels-right {
-        left: auto;
-        right: -60px; /* Bring right labels closer */
+    /* Force hide vertical labels even for visible next stop progress */
+    .next-stop-progress.visible .progress-labels-vertical {
+        display: none !important;
     }
     
-    .progress-labels-vertical .label {
-        padding: 3px 0;
-        font-size: 0.75rem; /* Smaller label text */
-    }
-    
-    .label-text {
-        font-size: 0.7rem; /* Smaller label text */
+    .label-icon {
+        font-size: 1.2rem; /* Slightly larger icons */
+        margin-bottom: 0;
     }
     
     .stats-card {
@@ -196,6 +396,15 @@
     }
 }
 
+/* Medium-small screens (376px - 420px) */
+@media (min-width: 376px) and (max-width: 420px) {
+    .title {
+        font-size: 1.7rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+}
+
 /* iPhone SE and very small screens */
 @media (max-width: 320px) {
     .progress-column {
@@ -211,14 +420,14 @@
         min-height: 300px; /* Same as desktop */
     }
     
+    /* Hide vertical labels on very small screens too */
     .progress-labels-vertical {
-        left: -80px; /* Same as desktop */
-        min-height: 300px; /* Same as desktop */
+        display: none !important;
     }
     
-    .progress-labels-right {
-        left: auto;
-        right: -80px; /* Preserve right positioning for second progress bar */
+    /* Force hide vertical labels even for visible next stop progress */
+    .next-stop-progress.visible .progress-labels-vertical {
+        display: none !important;
     }
     
     .stats-card {

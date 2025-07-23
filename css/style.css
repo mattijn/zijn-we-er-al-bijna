@@ -256,8 +256,10 @@ body {
 }
 
 .next-stop-progress.visible {
-    opacity: 1;
-    transform: scale(1);
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    display: flex !important;
+    visibility: visible !important;
 }
 
 .progress-bar {

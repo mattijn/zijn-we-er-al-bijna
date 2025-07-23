@@ -200,6 +200,14 @@ class ProgressTracker {
         // Calculate current distance to next stop
         const currentPosition = window.geolocationManager.getCurrentPositionSync();
         if (!currentPosition) {
+            // If no current position available, show 0% progress but keep the bar visible
+            const progressFillNextStop = document.getElementById('progress-fill-nextstop');
+            const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
+            
+            if (progressFillNextStop && progressIndicatorNextStop) {
+                progressFillNextStop.style.height = '0%';
+                progressIndicatorNextStop.style.bottom = '0%';
+            }
             return;
         }
 
@@ -598,4 +606,6 @@ class ProgressTracker {
 }
 
 // Create global instance
-window.progressTracker = new ProgressTracker(); 
+window.progressTracker = new ProgressTracker();
+
+ 
