@@ -31,6 +31,11 @@
         padding: 20px;
     }
     
+    /* Give address section more space on mobile */
+    .address-section {
+        max-height: 700px; /* More space for mobile buttons */
+    }
+    
     /* Ensure status section is properly hidden on mobile when needed */
     .status-section.hidden {
         display: none !important;
@@ -345,7 +350,13 @@
     
     .button-group {
         flex-direction: column;
-        gap: 10px;
+        gap: 8px; /* Reduced gap */
+    }
+    
+    .btn {
+        padding: 12px 16px; /* Smaller padding for very small screens */
+        min-height: 44px; /* Smaller height */
+        font-size: 1rem; /* Smaller font */
     }
     
     .progress-column {

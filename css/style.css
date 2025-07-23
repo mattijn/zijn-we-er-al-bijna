@@ -40,7 +40,7 @@ body {
 }
 
 .title {
-    font-size: 2.5rem;
+    font-size: 2.2rem; /* Reduced from 2.5rem to give more space */
     font-weight: 700;
     color: white;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -48,7 +48,7 @@ body {
 }
 
 .header-btn {
-    padding: 8px 16px;
+    padding: 8px 20px; /* Increased horizontal padding from 16px to 20px */
     font-size: 1.2rem;
     min-height: 36px;
     min-width: 48px;
@@ -63,6 +63,7 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
+    margin-left: 10px; /* Add some margin for breathing room */
 }
 
 .header-btn:hover {
@@ -94,7 +95,7 @@ body {
     transition: all 0.5s ease;
     transform: translateY(0);
     opacity: 1;
-    max-height: 500px;
+    max-height: 600px; /* Increased from 500px to give more space for buttons */
     overflow: hidden;
     margin-left: 10px;
     margin-right: 10px;
@@ -494,7 +495,7 @@ body {
 
 /* Make progress section taller when address section is expanded */
 .address-section:not(.collapsed) ~ .progress-section {
-    min-height: 350px;
+    min-height: 300px; /* Reduced from 350px to give more space to address section */
 }
 
 .status-card {
