@@ -1,0 +1,340 @@
+/* Mobile-specific optimizations */
+
+/* Touch-friendly button sizes */
+@media (max-width: 768px) {
+    .btn {
+        min-height: 56px; /* Larger touch targets */
+        font-size: 1.1rem;
+        padding: 18px 20px;
+    }
+    
+    .address-input {
+        padding: 18px; /* Larger touch targets */
+        font-size: 1.1rem;
+    }
+    
+    .title {
+        font-size: 2rem; /* Slightly smaller on mobile */
+    }
+    
+    .container {
+        padding: 15px;
+    }
+    
+    .address-section,
+    .progress-section {
+        padding: 20px;
+    }
+    
+    /* Keep same responsive layout as larger screens */
+    .progress-layout {
+        gap: 40px; /* Same as desktop */
+    }
+    
+    .progress-column {
+        flex: 1.7; /* Same as desktop */
+    }
+    
+    .stats-column {
+        flex: 0.3; /* Same as desktop */
+    }
+    
+    /* Ensure progress bar fits well on mobile */
+    .progress-bar {
+        width: 60px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-vertical {
+        left: -80px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-right {
+        left: auto;
+        right: -80px; /* Preserve right positioning for second progress bar */
+    }
+    
+    .progress-labels-vertical .label {
+        padding: 5px 0; /* Same as desktop */
+    }
+    
+    .car-icon {
+        font-size: 2rem; /* Same as desktop */
+    }
+    
+    .stats-card {
+        padding: 12px;
+        gap: 8px;
+        max-width: 150px;
+    }
+    
+    .stat-item {
+        gap: 8px;
+        padding: 6px 0;
+    }
+    
+    .stat-icon {
+        font-size: 1.2rem;
+        width: 30px;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+    }
+    
+    .stat-value {
+        font-size: 1rem;
+    }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header {
+        margin-bottom: 15px;
+        padding: 10px 0;
+    }
+    
+    .title {
+        font-size: 1.8rem;
+        margin-bottom: 5px;
+    }
+    
+    .subtitle {
+        font-size: 1rem;
+    }
+    
+    .main-content {
+        gap: 20px;
+    }
+    
+    .progress-bar {
+        height: 200px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 375px) {
+    .title {
+        font-size: 1.8rem;
+    }
+    
+    .container {
+        padding: 10px;
+    }
+    
+    .address-section,
+    .progress-section {
+        padding: 15px;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .progress-column {
+        flex: 1.7; /* Same as desktop */
+    }
+    
+    .stats-column {
+        flex: 0.3; /* Same as desktop */
+    }
+    
+    .progress-bar {
+        width: 60px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-vertical {
+        left: -80px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-right {
+        left: auto;
+        right: -80px; /* Preserve right positioning for second progress bar */
+    }
+    
+    .stats-card {
+        padding: 8px;
+        gap: 4px;
+        max-width: 120px;
+    }
+    
+    .stat-item {
+        gap: 4px;
+        padding: 3px 0;
+    }
+    
+    .stat-icon {
+        font-size: 1.2rem; /* Keep same as larger mobile screens */
+        width: 30px; /* Keep same as larger mobile screens */
+    }
+    
+    .stat-label {
+        font-size: 0.8rem; /* Keep same as larger mobile screens */
+    }
+    
+    .stat-value {
+        font-size: 1rem; /* Keep same as larger mobile screens */
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 320px) {
+    .progress-column {
+        flex: 1.7; /* Same as desktop */
+    }
+    
+    .stats-column {
+        flex: 0.3; /* Same as desktop */
+    }
+    
+    .progress-bar {
+        width: 60px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-vertical {
+        left: -80px; /* Same as desktop */
+        min-height: 300px; /* Same as desktop */
+    }
+    
+    .progress-labels-right {
+        left: auto;
+        right: -80px; /* Preserve right positioning for second progress bar */
+    }
+    
+    .stats-card {
+        padding: 6px;
+        gap: 3px;
+        max-width: 100px;
+    }
+    
+    .stat-item {
+        gap: 3px;
+        padding: 2px 0;
+    }
+    
+    .stat-icon {
+        font-size: 1.2rem; /* Keep same as larger mobile screens */
+        width: 30px; /* Keep same as larger mobile screens */
+    }
+    
+    .stat-label {
+        font-size: 0.8rem; /* Keep same as larger mobile screens */
+    }
+    
+    .stat-value {
+        font-size: 1rem; /* Keep same as larger mobile screens */
+    }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .address-input {
+        font-size: 16px;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .progress-bar {
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .btn {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .address-section,
+    .progress-section,
+    .status-card {
+        background: #1a1a1a;
+        color: #fff;
+    }
+    
+    .address-input {
+        background: #2a2a2a;
+        border-color: #404040;
+        color: #fff;
+    }
+    
+    .address-input:focus {
+        background: #333;
+        border-color: #667eea;
+    }
+    
+    .info-card {
+        background: #2a2a2a;
+        border-color: #404040;
+    }
+    
+    .info-label {
+        color: #ccc;
+    }
+    
+    .info-value {
+        color: #fff;
+    }
+    
+    .label-text {
+        color: #ccc;
+    }
+    
+    .btn-secondary {
+        background: #2a2a2a;
+        color: #ccc;
+        border-color: #404040;
+    }
+    
+    .btn-secondary:hover {
+        background: #333;
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .car-icon {
+        animation: none;
+    }
+    
+    .progress-fill,
+    .progress-indicator {
+        transition: none;
+    }
+    
+    .btn:hover {
+        transform: none;
+    }
+    
+    .loading-spinner {
+        animation: none;
+    }
+}
+
+/* Focus indicators for accessibility */
+.btn:focus,
+.address-input:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Ensure proper contrast ratios */
+.info-label {
+    color: #555;
+}
+
+@media (prefers-color-scheme: dark) {
+    .info-label {
+        color: #bbb;
+    }
+} 
