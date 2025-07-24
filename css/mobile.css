@@ -459,7 +459,7 @@
 /* Specific breakpoint for screens around 367px width */
 @media (min-width: 321px) and (max-width: 375px) {
     .title {
-        font-size: 1.55rem !important;
+        font-size: 1.45rem !important;
         max-width: calc(100% - 55px);
     }
     
