@@ -418,14 +418,30 @@ class ProgressTracker {
                 (this.tripData.nextStopOrigin.lat !== this.tripData.origin.lat || 
                  this.tripData.nextStopOrigin.lng !== this.tripData.origin.lng);
             
-            // If this is an updated next stop, start from 0% progress
-            // Otherwise use the trip progress ratio for original next stop
+            // Calculate progress ratio based on whether this is an original or updated next stop
             let progressRatio = 0;
-            if (!isUpdatedNextStop) {
-                // Original next stop - use trip progress
-                progressRatio = this.tripData.distanceTraveled / this.tripData.totalDistance;
+            if (isUpdatedNextStop) {
+                // For updated next stops, calculate progress from the new start point to current location
+                const currentPosition = window.geolocationManager.getCurrentPositionSync();
+                if (currentPosition && this.tripData.nextStopOrigin) {
+                    const distanceFromNewStart = window.geolocationManager.calculateDistance(
+                        this.tripData.nextStopOrigin.lat, this.tripData.nextStopOrigin.lng,
+                        currentPosition.lat, currentPosition.lng
+                    );
+                    progressRatio = distanceFromNewStart / this.tripData.nextStopRouteInfo.distance;
+                }
+            } else {
+                // Original next stop - calculate progress from current location to next stop
+                const currentPosition = window.geolocationManager.getCurrentPositionSync();
+                if (currentPosition) {
+                    const distanceToNextStop = window.geolocationManager.calculateDistance(
+                        currentPosition.lat, currentPosition.lng,
+                        this.tripData.nextStop.lat, this.tripData.nextStop.lng
+                    );
+                    // Calculate progress as: (total distance - remaining distance) / total distance
+                    progressRatio = (this.tripData.nextStopRouteInfo.distance - distanceToNextStop) / this.tripData.nextStopRouteInfo.distance;
+                }
             }
-            // If isUpdatedNextStop is true, progressRatio stays 0 (new start point)
             
             console.log('🔍 DEBUG - calculateTimeToNextStop:', {
                 isUpdatedNextStop: isUpdatedNextStop,
