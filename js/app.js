@@ -80,6 +80,23 @@ class TripApp {
             }
         });
         
+        // Set cursor to beginning and scroll to start when input is focused
+        this.destinationInput.addEventListener('focus', () => {
+            // Use setTimeout to ensure the focus event is fully processed
+            setTimeout(() => {
+                this.destinationInput.setSelectionRange(0, 0);
+                this.destinationInput.scrollLeft = 0; // Scroll to beginning of text
+            }, 0);
+        });
+        
+        this.nextStopInput.addEventListener('focus', () => {
+            // Use setTimeout to ensure the focus event is fully processed
+            setTimeout(() => {
+                this.nextStopInput.setSelectionRange(0, 0);
+                this.nextStopInput.scrollLeft = 0; // Scroll to beginning of text
+            }, 0);
+        });
+        
         // Update next stop button
         if (this.updateNextStopButton) {
             this.updateNextStopButton.addEventListener('click', () => this.handleUpdateNextStop());
@@ -201,6 +218,7 @@ class TripApp {
             this.releaseWakeLock();
             this.updateUIForInactiveTrip(); // Clear input fields for reset
             window.tripStorage.clearTripData();
+            window.tripStorage.clearTripHistory(); // Also clear recent measurements/history
             this.showSuccess('Reis gereset');
         }
     }

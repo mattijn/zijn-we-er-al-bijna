@@ -59,7 +59,14 @@ class ProgressTracker {
                 (error) => this.handleLocationError(error)
             );
 
-            this.updateDisplay();
+            // Get current position immediately for initial display
+            const currentPosition = await window.geolocationManager.getCurrentPosition();
+            // Initialize display without counting as a measurement
+            this.updateDisplay(0, window.geolocationManager.calculateDistance(
+                currentPosition.lat, currentPosition.lng,
+                destination.lat, destination.lng
+            ));
+            
             return this.tripData;
 
         } catch (error) {
@@ -91,21 +98,25 @@ class ProgressTracker {
             this.tripData.destination.lat, this.tripData.destination.lng
         );
 
-        // Calculate current speed if we have previous data
+        // Calculate current speed if we have previous data and there's actual movement
         if (this.tripData.lastUpdateTime && timeSinceLastUpdate > 0) {
             const distanceTraveled = distanceFromOrigin - this.tripData.distanceTraveled;
-            const currentSpeed = (distanceTraveled / timeSinceLastUpdate) * 3600; // km/h
             
-            // Only add realistic speeds to history
-            if (currentSpeed > 0 && currentSpeed < 200) {
-                this.tripData.speedHistory.push({
-                    speed: currentSpeed,
-                    timestamp: now
-                });
+            // Only add to speed history if there's actual movement (more than 1 meter)
+            if (distanceTraveled > 0.001) {
+                const currentSpeed = (distanceTraveled / timeSinceLastUpdate) * 3600; // km/h
                 
-                // Keep only last 10 speed measurements
-                if (this.tripData.speedHistory.length > 10) {
-                    this.tripData.speedHistory.shift();
+                // Only add realistic speeds to history
+                if (currentSpeed > 0 && currentSpeed < 200) {
+                    this.tripData.speedHistory.push({
+                        speed: currentSpeed,
+                        timestamp: now
+                    });
+                    
+                    // Keep only last 10 speed measurements
+                    if (this.tripData.speedHistory.length > 10) {
+                        this.tripData.speedHistory.shift();
+                    }
                 }
             }
         }
@@ -115,10 +126,15 @@ class ProgressTracker {
         this.tripData.lastUpdateTime = now;
         const remainingDistance = distanceToDestination;
 
-        // Calculate progress percentage
-        const progressPercentage = Math.min(100, Math.max(0, 
-            (this.tripData.distanceTraveled / this.tripData.totalDistance) * 100
-        ));
+        // Calculate progress percentage based on remaining distance to destination
+        // This ensures progress reaches 100% when we arrive, regardless of route taken
+        // Require at least 2 measurements for accurate progress calculation
+        let progressPercentage = 0;
+        if (this.tripData.speedHistory.length >= 2) {
+            progressPercentage = Math.min(100, Math.max(0, 
+                ((this.tripData.totalDistance - remainingDistance) / this.tripData.totalDistance) * 100
+            ));
+        }
 
         // Check if we've reached the destination (within 50 meters)
         if (remainingDistance <= 0.05) {
@@ -193,6 +209,9 @@ class ProgressTracker {
             if (this.tripData.routeInfo && this.tripData.routeInfo.roadTypes) {
                 console.log('🚗 Route Info:', {
                     totalDistance: this.tripData.totalDistance.toFixed(1) + ' km',
+                    remainingDistance: remainingDistance.toFixed(1) + ' km',
+                    progressPercentage: Math.round(progressPercentage) + '%',
+                    speedHistoryLength: this.tripData.speedHistory.length,
                     roadTypes: this.tripData.routeInfo.roadTypes,
                     expectedSpeed: window.geolocationManager.getExpectedSpeed(this.tripData.routeInfo.roadTypes) + ' km/h',
                     recentSpeeds: this.tripData.speedHistory.length + ' measurements',
