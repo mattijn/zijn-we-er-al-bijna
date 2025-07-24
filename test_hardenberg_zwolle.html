@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardenberg-Zwolle Test - Echte Locatie</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .result {
+            background: #e8f5e8;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .coordinates {
+            font-family: monospace;
+            background: #f1f3f4;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .distance-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .distance-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>🚗 Hardenberg-Zwolle Route Test</h1>
+    <p><strong>Deze test gebruikt je ECHTE huidige locatie!</strong></p>
+    
+    <div class="test-section">
+        <h2>📍 Test Bestemmingen</h2>
+        <ul>
+            <li><strong>Eindbestemming:</strong> Bruchterbeekweg, Hardenberg</li>
+            <li><strong>Tussenstop:</strong> Hanzelaan, Zwolle</li>
+        </ul>
+    </div>
+
+    <div id="results">
+        <div class="loading">🔄 Locatie ophalen...</div>
+    </div>
+
+    <script>
+        // Test addresses
+        const finalDestination = "Bruchterbeekweg, Hardenberg";
+        const nextStop = "Hanzelaan, Zwolle";
+
+        async function testRoute() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">🔄 Je huidige locatie ophalen...</div>';
+
+            try {
+                // Get real current position
+                console.log('Getting current location...');
+                const currentPosition = await getCurrentPosition();
+                console.log('Current position:', currentPosition);
+
+                resultsDiv.innerHTML = '<div class="loading">🗺️ Adressen geocoderen...</div>';
+
+                // Geocode current location to get address
+                console.log('Geocoding current location...');
+                const currentLocationAddress = await geocodeAddress(`${currentPosition.lat}, ${currentPosition.lng}`);
+                console.log('Current location address:', currentLocationAddress);
+
+                // Test 1: Geocoding final destination
+                console.log('Testing geocoding for final destination:', finalDestination);
+                const finalDestinationResult = await geocodeAddress(finalDestination);
+                console.log('Final destination result:', finalDestinationResult);
+
+                // Test 2: Geocoding next stop
+                console.log('Testing geocoding for next stop:', nextStop);
+                const nextStopResult = await geocodeAddress(nextStop);
+                console.log('Next stop result:', nextStopResult);
+
+                // Debug: Log the exact addresses being used
+                console.log('🔍 DEBUG - Addresses used:');
+                console.log('Final destination:', finalDestination);
+                console.log('Next stop:', nextStop);
+                console.log('Final destination coordinates:', finalDestinationResult.lat, finalDestinationResult.lng);
+                console.log('Next stop coordinates:', nextStopResult.lat, nextStopResult.lng);
+
+                resultsDiv.innerHTML = '<div class="loading">🛣️ Routes berekenen...</div>';
+
+                // Test 3: Route to next stop (current → next stop)
+                console.log('Calculating route to next stop...');
+                const routeToNextStop = await getRouteInfo(currentPosition, nextStopResult);
+                console.log('Route to next stop:', routeToNextStop);
+
+                // Test 4: Route from next stop to final destination
+                console.log('Calculating route from next stop to final destination...');
+                const routeToFinal = await getRouteInfo(nextStopResult, finalDestinationResult);
+                console.log('Route to final destination:', routeToFinal);
+
+                // Test 5: Direct route to final destination (current → final)
+                console.log('Calculating direct route to final destination...');
+                const directRouteToFinal = await getRouteInfo(currentPosition, finalDestinationResult);
+                console.log('Direct route to final:', directRouteToFinal);
+
+                // Calculate total route via next stop
+                const totalRouteViaStop = {
+                    distance: routeToNextStop.distance + routeToFinal.distance,
+                    duration: (routeToNextStop.duration || 0) + (routeToFinal.duration || 0),
+                    averageSpeed: null
+                };
+                if (totalRouteViaStop.duration > 0) {
+                    totalRouteViaStop.averageSpeed = totalRouteViaStop.distance / (totalRouteViaStop.duration / 60);
+                }
+
+                // Display results
+                resultsDiv.innerHTML = `
+                    <div class="test-section">
+                        <h2>📍 Je Huidige Locatie</h2>
+                        <div class="result">
+                            <p><strong>Adres:</strong> ${currentLocationAddress.displayName}</p>
+                            <p><strong>Coördinaten:</strong> <span class="coordinates">${currentPosition.lat.toFixed(6)}, ${currentPosition.lng.toFixed(6)}</span></p>
+                        </div>
+                    </div>
+
+                    <div class="test-section">
+                        <h2>🎯 Tussenstop: Hanzelaan, Zwolle</h2>
+                        <div class="result">
+                            <p><strong>Adres:</strong> ${nextStopResult.displayName}</p>
+                            <p><strong>Coördinaten:</strong> <span class="coordinates">${nextStopResult.lat.toFixed(6)}, ${nextStopResult.lng.toFixed(6)}</span></p>
+                        </div>
+                    </div>
+
+                    <div class="test-section">
+                        <h2>🏁 Eindbestemming: Bruchterbeekweg, Hardenberg</h2>
+                        <div class="result">
+                            <p><strong>Adres:</strong> ${finalDestinationResult.displayName}</p>
+                            <p><strong>Coördinaten:</strong> <span class="coordinates">${finalDestinationResult.lat.toFixed(6)}, ${finalDestinationResult.lng.toFixed(6)}</span></p>
+                        </div>
+                    </div>
+
+                    <div class="test-section">
+                        <h2>🛣️ Route Analyse</h2>
+                        
+                        <div class="distance-info">
+                            <div class="distance-card">
+                                <h3>🚗 Direct naar Hardenberg</h3>
+                                <p><strong>Afstand:</strong> ${directRouteToFinal.distance.toFixed(1)} km</p>
+                                <p><strong>Tijd:</strong> ${directRouteToFinal.duration ? directRouteToFinal.duration.toFixed(0) + ' min' : 'N/A'}</p>
+                                <p><strong>Gem. snelheid:</strong> ${directRouteToFinal.averageSpeed ? directRouteToFinal.averageSpeed.toFixed(0) + ' km/h' : 'N/A'}</p>
+                            </div>
+                            
+                            <div class="distance-card">
+                                <h3>🔄 Via Zwolle</h3>
+                                <p><strong>Totale afstand:</strong> ${totalRouteViaStop.distance.toFixed(1)} km</p>
+                                <p><strong>Totale tijd:</strong> ${totalRouteViaStop.duration ? totalRouteViaStop.duration.toFixed(0) + ' min' : 'N/A'}</p>
+                                <p><strong>Gem. snelheid:</strong> ${totalRouteViaStop.averageSpeed ? totalRouteViaStop.averageSpeed.toFixed(0) + ' km/h' : 'N/A'}</p>
+                            </div>
+                        </div>
+
+                        <div class="result">
+                            <h3>📊 Route Details</h3>
+                            <p><strong>Huidige locatie → Zwolle:</strong> ${routeToNextStop.distance.toFixed(1)} km, ${routeToNextStop.duration ? routeToNextStop.duration.toFixed(0) + ' min' : 'N/A'}</p>
+                            <p><strong>Zwolle → Hardenberg:</strong> ${routeToFinal.distance.toFixed(1)} km, ${routeToFinal.duration ? routeToFinal.duration.toFixed(0) + ' min' : 'N/A'}</p>
+                            <p><strong>Extra afstand via Zwolle:</strong> ${(totalRouteViaStop.distance - directRouteToFinal.distance).toFixed(1)} km</p>
+                            <p><strong>Extra tijd via Zwolle:</strong> ${totalRouteViaStop.duration && directRouteToFinal.duration ? (totalRouteViaStop.duration - directRouteToFinal.duration).toFixed(0) + ' min' : 'N/A'}</p>
+                        </div>
+
+                        <div class="result">
+                            <h3>🛣️ Wegtype Analyse</h3>
+                            <p><strong>Directe route wegtypes:</strong> ${directRouteToFinal.roadTypes ? JSON.stringify(directRouteToFinal.roadTypes, null, 2) : 'N/A'}</p>
+                            <p><strong>Route naar Zwolle wegtypes:</strong> ${routeToNextStop.roadTypes ? JSON.stringify(routeToNextStop.roadTypes, null, 2) : 'N/A'}</p>
+                            <p><strong>Route naar Hardenberg wegtypes:</strong> ${routeToFinal.roadTypes ? JSON.stringify(routeToFinal.roadTypes, null, 2) : 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Test failed:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h2>❌ Test Mislukt</h2>
+                        <p><strong>Fout:</strong> ${error.message}</p>
+                        <p>Zorg ervoor dat je locatie-toegang toestaat in je browser.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Get current position using browser geolocation
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation wordt niet ondersteund door deze browser'));
+                    return;
+                }
+
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                };
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: position.timestamp
+                        });
+                    },
+                    (error) => {
+                        const errorMessage = getErrorMessage(error);
+                        reject(new Error(errorMessage));
+                    },
+                    options
+                );
+            });
+        }
+
+        // Copy the geocoding function from geolocation.js
+        async function geocodeAddress(address) {
+            if (!address || address.trim() === '') {
+                throw new Error('Adres is vereist');
+            }
+
+            const encodedAddress = encodeURIComponent(address.trim());
+            
+            const services = [
+                {
+                    url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`)}`,
+                    parser: (data) => {
+                        if (data.length === 0) throw new Error('Adres niet gevonden');
+                        const result = data[0];
+                        return {
+                            lat: parseFloat(result.lat),
+                            lng: parseFloat(result.lon),
+                            displayName: result.display_name,
+                            address: result.address
+                        };
+                    }
+                },
+                {
+                    url: `https://geocode.maps.co/search?q=${encodedAddress}`,
+                    parser: (data) => {
+                        if (data.length === 0) throw new Error('Adres niet gevonden');
+                        const result = data[0];
+                        return {
+                            lat: parseFloat(result.lat),
+                            lng: parseFloat(result.lon),
+                            displayName: result.display_name || `${address}, Netherlands`,
+                            address: result.address || address
+                        };
+                    }
+                }
+            ];
+
+            for (const service of services) {
+                try {
+                    const response = await fetch(service.url, {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        continue;
+                    }
+
+                    const data = await response.json();
+                    const result = service.parser(data);
+                    
+                    console.log('Geocoding successful:', result);
+                    return result;
+                    
+                } catch (error) {
+                    console.log(`Geocoding service failed:`, error.message);
+                    continue;
+                }
+            }
+
+            throw new Error(`Kon adres niet vinden: ${address}. Probeer een ander adres of controleer je internetverbinding.`);
+        }
+
+        // Copy the routing function from geolocation.js
+        async function getRouteInfo(origin, destination) {
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('OSRM route request failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const leg = route.legs[0];
+                    
+                    return {
+                        distance: route.distance / 1000, // Convert to kilometers
+                        duration: route.duration / 60, // Convert to minutes
+                        averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
+                        roadTypes: analyzeRoadTypes(leg.annotation?.speed || []),
+                        waypoints: leg.annotation?.speed || []
+                    };
+                } else {
+                    throw new Error('No route found');
+                }
+            } catch (error) {
+                console.warn('OSRM route calculation failed, falling back to Haversine:', error.message);
+                const distance = calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+                return {
+                    distance: distance,
+                    duration: null,
+                    averageSpeed: null,
+                    roadTypes: null,
+                    waypoints: null
+                };
+            }
+        }
+
+        // Copy the distance calculation function
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in kilometers
+            const dLat = toRadians(lat2 - lat1);
+            const dLng = toRadians(lng2 - lng1);
+            
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const distance = R * c;
+            
+            return distance;
+        }
+
+        // Copy helper functions
+        function analyzeRoadTypes(speedData) {
+            if (!speedData || speedData.length === 0) return null;
+            
+            const roadTypes = {
+                highway: 0,
+                primary: 0,
+                secondary: 0,
+                residential: 0
+            };
+            
+            speedData.forEach(speed => {
+                if (speed > 100) roadTypes.highway++;
+                else if (speed > 80) roadTypes.primary++;
+                else if (speed > 50) roadTypes.secondary++;
+                else roadTypes.residential++;
+            });
+            
+            return roadTypes;
+        }
+
+        function toRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+
+        function getErrorMessage(error) {
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    return 'Locatie-toegang geweigerd. Controleer je browser-instellingen.';
+                case error.POSITION_UNAVAILABLE:
+                    return 'Locatie-informatie is niet beschikbaar.';
+                case error.TIMEOUT:
+                    return 'Locatie-verzoek is verlopen. Probeer het opnieuw.';
+                default:
+                    return 'Er is een onbekende fout opgetreden.';
+            }
+        }
+
+        // Run the test
+        testRoute();
+    </script>
+</body>
+</html> 

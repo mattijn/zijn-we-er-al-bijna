@@ -102,10 +102,12 @@ class TripApp {
             this.updateNextStopButton.addEventListener('click', () => this.handleUpdateNextStop());
         }
         
-        // Enable/disable update button based on next stop input
+        // Enable/disable update button based on next stop input and trip status
         this.nextStopInput.addEventListener('input', () => {
             if (this.updateNextStopButton) {
-                this.updateNextStopButton.disabled = !this.nextStopInput.value.trim();
+                const hasNextStop = this.nextStopInput.value.trim();
+                const isTripActive = window.progressTracker.isTripActive();
+                this.updateNextStopButton.disabled = !hasNextStop || !isTripActive;
             }
         });
 
@@ -356,6 +358,12 @@ class TripApp {
         this.resetButton.textContent = '⏹️ Stop Reis';
         this.backToSetupButton.classList.remove('hidden');
         
+        // Enable update button if there's a next stop
+        if (this.updateNextStopButton) {
+            const hasNextStop = this.nextStopInput.value.trim();
+            this.updateNextStopButton.disabled = !hasNextStop;
+        }
+        
         // Collapse address section
         const addressSection = document.getElementById('address-section');
         if (addressSection) {
@@ -409,6 +417,11 @@ class TripApp {
             progressSection.classList.remove('compact');
         }
         
+        // Disable update button when trip is stopped
+        if (this.updateNextStopButton) {
+            this.updateNextStopButton.disabled = true;
+        }
+        
         // Update status section visibility
         this.updateStatusSectionVisibility();
         
@@ -447,6 +460,11 @@ class TripApp {
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
             progressSection.classList.remove('compact');
+        }
+        
+        // Disable update button when trip is inactive
+        if (this.updateNextStopButton) {
+            this.updateNextStopButton.disabled = true;
         }
         
         // Update status section visibility

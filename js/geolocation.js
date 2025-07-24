@@ -241,7 +241,10 @@ class GeolocationManager {
      * Analyze road types from OSRM speed data
      */
     analyzeRoadTypes(speedData) {
-        if (!speedData || speedData.length === 0) return null;
+        if (!speedData || !Array.isArray(speedData) || speedData.length === 0) {
+            console.warn('No speed data available from OSRM');
+            return null;
+        }
         
         const roadTypes = {
             highway: 0,    // Snelweg (> 100 km/h)
@@ -250,10 +253,16 @@ class GeolocationManager {
             residential: 0 // Woonwijk (30-50 km/h)
         };
         
+        // Categorize road types based on speed data (convert m/s to km/h)
         speedData.forEach(speed => {
-            if (speed > 100) roadTypes.highway++;
-            else if (speed > 80) roadTypes.primary++;
-            else if (speed > 50) roadTypes.secondary++;
+            if (!speed || speed <= 0) return; // Skip invalid speeds
+            
+            // Convert m/s to km/h: speed * 3.6
+            const speedKmh = speed * 3.6;
+            
+            if (speedKmh > 100) roadTypes.highway++;
+            else if (speedKmh > 80) roadTypes.primary++;
+            else if (speedKmh > 50) roadTypes.secondary++;
             else roadTypes.residential++;
         });
         
@@ -266,10 +275,10 @@ class GeolocationManager {
     getExpectedSpeed(roadTypes) {
         if (!roadTypes) return 80; // Default fallback
         
-        const total = Object.values(roadTypes).reduce((sum, count) => sum + count, 0);
+        const total = Object.values(roadTypes).reduce((sum, distance) => sum + distance, 0);
         if (total === 0) return 80;
         
-        // Weighted average based on road type distribution
+        // Weighted average based on road type distribution (distance-weighted)
         const weightedSpeed = (
             (roadTypes.highway * 120) +
             (roadTypes.primary * 90) +

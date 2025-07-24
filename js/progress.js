@@ -24,6 +24,11 @@ class ProgressTracker {
      */
     async startTrip(destinationAddress, nextStopAddress = null) {
         try {
+            // Debug: Log the addresses being used
+            console.log('🔍 DEBUG - startTrip called with:');
+            console.log('Destination address:', destinationAddress);
+            console.log('Next stop address:', nextStopAddress);
+            
             // Get current location as origin
             const origin = await window.geolocationManager.getCurrentPosition();
             
@@ -36,8 +41,20 @@ class ProgressTracker {
                 nextStop = await window.geolocationManager.geocodeAddress(nextStopAddress);
             }
 
+            // Debug: Log the geocoding results
+            console.log('🔍 DEBUG - Geocoding results:');
+            console.log('Origin:', origin);
+            console.log('Destination:', destination);
+            console.log('Next stop:', nextStop);
+
             // Get route information using OSRM for better calculations
             const routeInfo = await window.geolocationManager.getRouteInfo(origin, destination);
+            
+            // Debug: Log the route information
+            console.log('🔍 DEBUG - Route info:');
+            console.log('OSRM distance:', routeInfo.distance, 'km');
+            console.log('OSRM duration:', routeInfo.duration, 'min');
+            console.log('OSRM average speed:', routeInfo.averageSpeed, 'km/h');
 
             this.tripData = {
                 origin: origin,
@@ -61,11 +78,8 @@ class ProgressTracker {
 
             // Get current position immediately for initial display
             const currentPosition = await window.geolocationManager.getCurrentPosition();
-            // Initialize display without counting as a measurement
-            this.updateDisplay(0, window.geolocationManager.calculateDistance(
-                currentPosition.lat, currentPosition.lng,
-                destination.lat, destination.lng
-            ));
+            // Initialize display using OSRM route distance for consistency
+            this.updateDisplay(0, routeInfo.distance);
             
             return this.tripData;
 
@@ -124,17 +138,20 @@ class ProgressTracker {
         // Update trip data
         this.tripData.distanceTraveled = distanceFromOrigin;
         this.tripData.lastUpdateTime = now;
-        const remainingDistance = distanceToDestination;
-
-        // Calculate progress percentage based on remaining distance to destination
-        // This ensures progress reaches 100% when we arrive, regardless of route taken
+        
+        // Calculate progress percentage based on distance traveled from origin
+        // This ensures accurate progress calculation regardless of route taken
         // Require at least 2 measurements for accurate progress calculation
         let progressPercentage = 0;
         if (this.tripData.speedHistory.length >= 2) {
             progressPercentage = Math.min(100, Math.max(0, 
-                ((this.tripData.totalDistance - remainingDistance) / this.tripData.totalDistance) * 100
+                (this.tripData.distanceTraveled / this.tripData.totalDistance) * 100
             ));
         }
+        
+        // Calculate remaining distance proportionally based on OSRM route
+        // This ensures we show the correct remaining route distance, not straight-line distance
+        const remainingDistance = this.tripData.totalDistance - this.tripData.distanceTraveled;
 
         // Check if we've reached the destination (within 50 meters)
         if (remainingDistance <= 0.05) {
@@ -189,11 +206,15 @@ class ProgressTracker {
         const timeRemainingEl = document.getElementById('time-remaining');
 
         if (remainingDistanceEl) {
-            remainingDistanceEl.textContent = `${remainingDistance.toFixed(1)} km`;
+            // Round to whole kilometers for distances above 5km for better readability
+            const displayDistance = remainingDistance > 5 ? Math.round(remainingDistance) : remainingDistance.toFixed(1);
+            remainingDistanceEl.textContent = `${displayDistance} km`;
         }
 
         if (distanceTraveledEl) {
-            distanceTraveledEl.textContent = `${this.tripData.distanceTraveled.toFixed(1)} km`;
+            // Round to whole kilometers for distances above 5km for better readability
+            const displayDistanceTraveled = this.tripData.distanceTraveled > 5 ? Math.round(this.tripData.distanceTraveled) : this.tripData.distanceTraveled.toFixed(1);
+            distanceTraveledEl.textContent = `${displayDistanceTraveled} km`;
         }
 
         if (progressPercentageEl) {
@@ -220,6 +241,24 @@ class ProgressTracker {
             }
         }
 
+        // Update next stop time if available
+        const nextStopTimeItem = document.getElementById('next-stop-time-item');
+        const nextStopTimeEl = document.getElementById('next-stop-time');
+        
+        if (nextStopTimeItem && nextStopTimeEl) {
+            if (this.tripData.nextStop && this.tripData.startTime) {
+                const nextStopTime = this.calculateTimeToNextStop();
+                if (nextStopTime) {
+                    nextStopTimeEl.textContent = nextStopTime;
+                    nextStopTimeItem.style.display = 'flex';
+                } else {
+                    nextStopTimeItem.style.display = 'none';
+                }
+            } else {
+                nextStopTimeItem.style.display = 'none';
+            }
+        }
+
         // Update status
         this.updateStatus(progressPercentage, remainingDistance);
     }
@@ -238,11 +277,25 @@ class ProgressTracker {
             nextStopProgress.classList.add('visible');
         }
 
-        // Use nextStopOrigin if available (for updates), otherwise use original origin
-        const nextStopStartPoint = this.tripData.nextStopOrigin || this.tripData.origin;
+        // For progress calculation, we need to determine if this is an original or updated next stop
+        const isUpdatedNextStop = this.tripData.nextStopOrigin && 
+            (this.tripData.nextStopOrigin.lat !== this.tripData.origin.lat || 
+             this.tripData.nextStopOrigin.lng !== this.tripData.origin.lng);
+        
+        // Use nextStopOrigin if this is an updated next stop, otherwise use original origin
+        const nextStopStartPoint = isUpdatedNextStop ? this.tripData.nextStopOrigin : this.tripData.origin;
         if (!nextStopStartPoint) {
             return;
         }
+        
+        console.log('🔍 DEBUG - updateNextStopProgress:', {
+            isUpdatedNextStop: isUpdatedNextStop,
+            hasNextStopOrigin: !!this.tripData.nextStopOrigin,
+            startPoint: {
+                lat: nextStopStartPoint.lat,
+                lng: nextStopStartPoint.lng
+            }
+        });
 
         // Use OSRM route data if available, otherwise fallback to simple calculation
         let totalDistanceToNextStop = 0;
@@ -269,15 +322,51 @@ class ProgressTracker {
             return;
         }
 
-        const distanceToNextStop = window.geolocationManager.calculateDistance(
-            currentPosition.lat, currentPosition.lng,
-            this.tripData.nextStop.lat, this.tripData.nextStop.lng
-        );
+        // For updated next stops, we need to calculate progress from the new start point
+        let progressToNextStop = 0;
+        let distanceToNextStop = 0; // Define this variable outside the if/else blocks
+        
+        if (isUpdatedNextStop) {
+            // For updated next stops, calculate progress from the new start point (nextStopOrigin)
+            const distanceFromNewStart = window.geolocationManager.calculateDistance(
+                this.tripData.nextStopOrigin.lat, this.tripData.nextStopOrigin.lng,
+                currentPosition.lat, currentPosition.lng
+            );
+            
+            distanceToNextStop = window.geolocationManager.calculateDistance(
+                currentPosition.lat, currentPosition.lng,
+                this.tripData.nextStop.lat, this.tripData.nextStop.lng
+            );
+            
+            // Progress is the distance traveled from new start point
+            progressToNextStop = Math.min(100, Math.max(0, 
+                (distanceFromNewStart / totalDistanceToNextStop) * 100
+            ));
+            
+            console.log('🔍 DEBUG - updateNextStopProgress (updated):', {
+                distanceFromNewStart: distanceFromNewStart.toFixed(2) + ' km',
+                distanceToNextStop: distanceToNextStop.toFixed(2) + ' km',
+                totalDistanceToNextStop: totalDistanceToNextStop.toFixed(2) + ' km',
+                progressToNextStop: progressToNextStop.toFixed(1) + '%'
+            });
+        } else {
+            // For original next stops, use the standard calculation
+            distanceToNextStop = window.geolocationManager.calculateDistance(
+                currentPosition.lat, currentPosition.lng,
+                this.tripData.nextStop.lat, this.tripData.nextStop.lng
+            );
 
-        // Calculate progress percentage to next stop
-        const progressToNextStop = Math.min(100, Math.max(0, 
-            ((totalDistanceToNextStop - distanceToNextStop) / totalDistanceToNextStop) * 100
-        ));
+            // Calculate progress percentage to next stop
+            progressToNextStop = Math.min(100, Math.max(0, 
+                ((totalDistanceToNextStop - distanceToNextStop) / totalDistanceToNextStop) * 100
+            ));
+            
+            console.log('🔍 DEBUG - updateNextStopProgress (original):', {
+                distanceToNextStop: distanceToNextStop.toFixed(2) + ' km',
+                totalDistanceToNextStop: totalDistanceToNextStop.toFixed(2) + ' km',
+                progressToNextStop: progressToNextStop.toFixed(1) + '%'
+            });
+        }
 
         // Update next stop progress bar
         const progressFillNextStop = document.getElementById('progress-fill-nextstop');
@@ -313,21 +402,76 @@ class ProgressTracker {
     }
 
     /**
-     * Calculate time remaining using improved algorithm with OSRM data
+     * Calculate time to next stop using OSRM route data
      */
-    calculateTimeRemaining(remainingDistance) {
-        if (!this.tripData.startTime || this.tripData.distanceTraveled === 0) {
-            return '--';
+    calculateTimeToNextStop() {
+        if (!this.tripData.nextStop || !this.tripData.startTime) {
+            return null;
         }
+
+        // Use OSRM route data if available for accurate time calculation
+        if (this.tripData.nextStopRouteInfo && this.tripData.nextStopRouteInfo.duration) {
+            const totalRouteTime = this.tripData.nextStopRouteInfo.duration; // minutes
+            
+            // Determine if this is an original or updated next stop
+            const isUpdatedNextStop = this.tripData.nextStopOrigin && 
+                (this.tripData.nextStopOrigin.lat !== this.tripData.origin.lat || 
+                 this.tripData.nextStopOrigin.lng !== this.tripData.origin.lng);
+            
+            // If this is an updated next stop, start from 0% progress
+            // Otherwise use the trip progress ratio for original next stop
+            let progressRatio = 0;
+            if (!isUpdatedNextStop) {
+                // Original next stop - use trip progress
+                progressRatio = this.tripData.distanceTraveled / this.tripData.totalDistance;
+            }
+            // If isUpdatedNextStop is true, progressRatio stays 0 (new start point)
+            
+            console.log('🔍 DEBUG - calculateTimeToNextStop:', {
+                isUpdatedNextStop: isUpdatedNextStop,
+                hasNextStopOrigin: !!this.tripData.nextStopOrigin,
+                progressRatio: progressRatio,
+                totalRouteTime: totalRouteTime,
+                timeRemaining: totalRouteTime - (totalRouteTime * progressRatio)
+            });
+            
+            const timeElapsed = totalRouteTime * progressRatio;
+            const timeRemaining = totalRouteTime - timeElapsed;
+            
+            // Format time remaining
+            if (timeRemaining >= 60) {
+                const hours = Math.floor(timeRemaining / 60);
+                const minutes = Math.round(timeRemaining % 60);
+                if (hours >= 2) {
+                    return `${hours} uur`;
+                } else {
+                    return `${hours}u ${minutes}m`;
+                }
+            } else {
+                const minutes = Math.round(timeRemaining);
+                return `${minutes} min`;
+            }
+        }
+
+        // Fallback to speed-based calculation if no OSRM data
+        const currentPosition = window.geolocationManager.getCurrentPositionSync();
+        if (!currentPosition) {
+            return null;
+        }
+
+        const distanceToNextStop = window.geolocationManager.calculateDistance(
+            currentPosition.lat, currentPosition.lng,
+            this.tripData.nextStop.lat, this.tripData.nextStop.lng
+        );
 
         let expectedSpeed = 80; // Default fallback speed
 
-        // Method 1: Use OSRM route data if available
+        // Use OSRM route data if available
         if (this.tripData.routeInfo && this.tripData.routeInfo.roadTypes) {
             expectedSpeed = window.geolocationManager.getExpectedSpeed(this.tripData.routeInfo.roadTypes);
         }
 
-        // Method 2: Use weighted average of recent speeds
+        // Use weighted average of recent speeds
         if (this.tripData.speedHistory && this.tripData.speedHistory.length > 0) {
             const recentSpeeds = this.tripData.speedHistory
                 .filter(entry => entry.timestamp > Date.now() - 300000) // Last 5 minutes
@@ -355,7 +499,89 @@ class ProgressTracker {
             }
         }
 
-        // Method 3: Fallback to simple average speed calculation
+        const timeRemainingHours = distanceToNextStop / expectedSpeed;
+        
+        if (timeRemainingHours >= 1) {
+            const hours = Math.floor(timeRemainingHours);
+            const minutes = Math.round((timeRemainingHours - hours) * 60);
+            if (hours >= 2) {
+                return `${hours} uur`;
+            } else {
+                return `${hours}u ${minutes}m`;
+            }
+        } else {
+            const minutes = Math.round(timeRemainingHours * 60);
+            return `${minutes} min`;
+        }
+    }
+
+    /**
+     * Calculate time remaining using OSRM route data for accuracy
+     */
+    calculateTimeRemaining(remainingDistance) {
+        if (!this.tripData.startTime || this.tripData.distanceTraveled === 0) {
+            return '--';
+        }
+
+        // Use OSRM route data if available for accurate time calculation
+        if (this.tripData.routeInfo && this.tripData.routeInfo.duration) {
+            const totalRouteTime = this.tripData.routeInfo.duration; // minutes
+            const progressRatio = this.tripData.distanceTraveled / this.tripData.totalDistance;
+            const timeElapsed = totalRouteTime * progressRatio;
+            const timeRemaining = totalRouteTime - timeElapsed;
+            
+            // Format time remaining
+            if (timeRemaining >= 60) {
+                const hours = Math.floor(timeRemaining / 60);
+                const minutes = Math.round(timeRemaining % 60);
+                if (hours >= 2) {
+                    return `${hours} uur`;
+                } else {
+                    return `${hours}u ${minutes}m`;
+                }
+            } else {
+                const minutes = Math.round(timeRemaining);
+                return `${minutes} min`;
+            }
+        }
+
+        // Fallback to speed-based calculation if no OSRM data
+        let expectedSpeed = 80; // Default fallback speed
+
+        // Use OSRM route data if available
+        if (this.tripData.routeInfo && this.tripData.routeInfo.roadTypes) {
+            expectedSpeed = window.geolocationManager.getExpectedSpeed(this.tripData.routeInfo.roadTypes);
+        }
+
+        // Use weighted average of recent speeds
+        if (this.tripData.speedHistory && this.tripData.speedHistory.length > 0) {
+            const recentSpeeds = this.tripData.speedHistory
+                .filter(entry => entry.timestamp > Date.now() - 300000) // Last 5 minutes
+                .map(entry => entry.speed);
+            
+            if (recentSpeeds.length > 0) {
+                // Calculate weighted average (more recent speeds have higher weight)
+                let totalWeight = 0;
+                let weightedSum = 0;
+                
+                recentSpeeds.forEach((speed, index) => {
+                    const weight = index + 1; // More recent = higher weight
+                    weightedSum += speed * weight;
+                    totalWeight += weight;
+                });
+                
+                const weightedAverageSpeed = weightedSum / totalWeight;
+                
+                // Blend OSRM expected speed with actual recent speed
+                if (this.tripData.routeInfo && this.tripData.routeInfo.roadTypes) {
+                    expectedSpeed = (expectedSpeed * 0.4) + (weightedAverageSpeed * 0.6);
+                } else {
+                    expectedSpeed = weightedAverageSpeed;
+                }
+            }
+        }
+
+        // Fallback to simple average speed calculation
         if (expectedSpeed === 80 && this.tripData.distanceTraveled > 0) {
             const elapsedTime = (Date.now() - this.tripData.startTime) / 1000 / 60; // minutes
             const averageSpeed = this.tripData.distanceTraveled / (elapsedTime / 60); // km/h
@@ -389,12 +615,10 @@ class ProgressTracker {
             }
         } else {
             const minutes = Math.round(timeRemainingHours * 60);
-            if (minutes <= 5) {
-                return 'Bijna daar!';
-            } else if (minutes <= 15) {
-                return `${minutes} minuten`;
+            if (minutes <= 15) {
+                return `${minutes} min`;
             } else {
-                return `${minutes}m`;
+                return `${minutes} min`;
             }
         }
     }
@@ -579,11 +803,27 @@ class ProgressTracker {
             // Get current position as new origin for next stop
             const currentPosition = await window.geolocationManager.getCurrentPosition();
             
+            console.log('🔍 DEBUG - updateNextStop: Using current position as new origin:', {
+                lat: currentPosition.lat,
+                lng: currentPosition.lng
+            });
+            
             // Geocode the new next stop
             const nextStop = await window.geolocationManager.geocodeAddress(nextStopAddress);
             
+            console.log('🔍 DEBUG - updateNextStop: New next stop geocoded:', {
+                address: nextStopAddress,
+                lat: nextStop.lat,
+                lng: nextStop.lng
+            });
+            
             // Get route information for next stop using OSRM
             const nextStopRouteInfo = await window.geolocationManager.getRouteInfo(currentPosition, nextStop);
+            
+            console.log('🔍 DEBUG - updateNextStop: New route info:', {
+                distance: nextStopRouteInfo.distance + ' km',
+                duration: nextStopRouteInfo.duration + ' min'
+            });
             
             // Update trip data
             this.tripData.nextStop = nextStop;
@@ -597,10 +837,20 @@ class ProgressTracker {
             if (progressFillNextStop && progressIndicatorNextStop) {
                 progressFillNextStop.style.height = '0%';
                 progressIndicatorNextStop.style.bottom = '0%';
+                console.log('🔍 DEBUG - updateNextStop: Progress bar reset to 0%');
             }
             
-            // Update display
+            // Update display to show the reset progress
             this.updateNextStopProgress();
+            
+            // Also update the main display to refresh the next stop time calculation
+            this.updateDisplay();
+            
+            // Force update of the main display to refresh next stop time
+            const syncPosition = window.geolocationManager.getCurrentPositionSync();
+            if (syncPosition) {
+                this.updateProgress(syncPosition);
+            }
             
             return this.tripData;
             
@@ -632,6 +882,12 @@ class ProgressTracker {
         window.geolocationManager.stopTracking();
         this.updateDisplay();
         this.resetStatus();
+        
+        // Hide next stop time item
+        const nextStopTimeItem = document.getElementById('next-stop-time-item');
+        if (nextStopTimeItem) {
+            nextStopTimeItem.style.display = 'none';
+        }
     }
 
     /**
@@ -677,6 +933,10 @@ class ProgressTracker {
         if (distanceTraveledEl) distanceTraveledEl.textContent = '-- km';
         if (progressPercentageEl) progressPercentageEl.textContent = '0%';
         if (timeRemainingEl) timeRemainingEl.textContent = '--';
+        
+        // Reset next stop time
+        const nextStopTimeEl = document.getElementById('next-stop-time');
+        if (nextStopTimeEl) nextStopTimeEl.textContent = '--';
     }
 
     /**
