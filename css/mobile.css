@@ -350,7 +350,7 @@
 /* iPhone 13 mini and similar small screens - icons only next to bars */
 @media (max-width: 375px) {
     .title {
-        font-size: 1.2rem; /* Smallest size for very small screens */
+        font-size: 1.1rem !important; /* Smaller font size for better fit - force override */
         max-width: calc(100% - 55px); /* Adjust space for button */
     }
     
@@ -361,6 +361,11 @@
     .address-section,
     .progress-section {
         padding: 8px; /* Reduced from 12px to save more space */
+    }
+    
+    /* Add more bottom padding to address section for button spacing */
+    .container .main-content .address-section {
+        padding-bottom: 20px !important; /* Extra space at bottom for buttons - force override */
     }
     
     .button-group {
@@ -448,14 +453,44 @@
     .title {
         font-size: 1.7rem;
         line-height: 1.2;
-        white-space: nowrap;
+    }
+}
+
+/* Specific breakpoint for screens around 367px width */
+@media (min-width: 321px) and (max-width: 375px) {
+    .title {
+        font-size: 1.65rem !important;
+        max-width: calc(100% - 55px);
+    }
+    
+    /* Add more bottom padding to address section for button spacing */
+    .container .main-content .address-section {
+        padding-bottom: 18px !important; /* Extra space at bottom for buttons - force override */
+    }
+}
+
+/* Screens larger than 421px - add extra space under buttons */
+@media (min-width: 421px) {
+    .container .main-content .address-section {
+        padding-bottom: 35px !important; /* Extra space at bottom for buttons on larger screens */
+    }
+    
+    .container .main-content .address-section .button-group {
+        margin-bottom: 15px !important; /* Additional margin below button group */
+    }
+}
+
+/* Short screens - reduce padding to save space */
+@media (max-height: 700px) {
+    .address-section, .progress-section {
+        padding: 8px !important;
     }
 }
 
 /* iPhone SE and very small screens */
 @media (max-width: 320px) {
     .title {
-        font-size: 1.1rem; /* Smallest size for very small screens */
+        font-size: 1rem !important; /* Even smaller for very small screens - force override */
         max-width: calc(100% - 50px); /* Adjust space for button */
     }
     
