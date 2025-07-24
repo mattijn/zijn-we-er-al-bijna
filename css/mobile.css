@@ -6,10 +6,18 @@
         margin-bottom: 0; /* Remove margin-bottom on small screens */
     }
     
+    .title {
+        font-size: 1.8rem; /* Smaller on mobile */
+        max-width: calc(100% - 70px); /* Adjust space for button */
+    }
+    
     .btn {
         min-height: 56px; /* Larger touch targets */
         font-size: 1.1rem;
         padding: 18px 20px;
+        white-space: nowrap; /* Prevent text wrapping */
+        overflow: hidden; /* Hide overflow text */
+        text-overflow: ellipsis; /* Show ellipsis for overflow */
     }
     
     .address-input {
@@ -121,13 +129,12 @@
 /* Medium mobile screens (around 575px) */
 @media (max-width: 600px) {
     .title {
-        font-size: 1.8rem;
-        line-height: 1.2;
-        white-space: nowrap;
+        font-size: 1.6rem; /* Even smaller on medium-small screens */
+        max-width: calc(100% - 65px); /* Adjust space for button */
     }
     
     .progress-layout {
-        gap: 15px;
+        gap: 15px; /* Reduce gap for mobile */
     }
     
     .progress-column {
@@ -219,13 +226,12 @@
 /* Extra small screens - icons above progress bars */
 @media (max-width: 480px) {
     .title {
-        font-size: 1.7rem;
-        line-height: 1.2;
-        white-space: nowrap;
+        font-size: 1.4rem; /* Very small on small screens */
+        max-width: calc(100% - 60px); /* Adjust space for button */
     }
     
     .progress-layout {
-        gap: 15px;
+        gap: 10px; /* Reduce gap for small screens */
     }
     
     .progress-column {
@@ -344,9 +350,8 @@
 /* iPhone 13 mini and similar small screens - icons only next to bars */
 @media (max-width: 375px) {
     .title {
-        font-size: 1.6rem; /* Smaller title to prevent wrapping */
-        line-height: 1.2;
-        white-space: nowrap;
+        font-size: 1.2rem; /* Smallest size for very small screens */
+        max-width: calc(100% - 55px); /* Adjust space for button */
     }
     
     .container {
@@ -370,6 +375,9 @@
         font-size: 0.9rem;
         flex: 1;
         max-width: 130px;
+        white-space: nowrap; /* Prevent text wrapping */
+        overflow: hidden; /* Hide overflow text */
+        text-overflow: ellipsis; /* Show ellipsis for overflow */
     }
     
     .address-input {
@@ -446,6 +454,11 @@
 
 /* iPhone SE and very small screens */
 @media (max-width: 320px) {
+    .title {
+        font-size: 1.1rem; /* Smallest size for very small screens */
+        max-width: calc(100% - 50px); /* Adjust space for button */
+    }
+    
     .progress-column {
         flex: 1.7; /* Same as desktop */
     }

@@ -331,7 +331,7 @@ class TripApp {
      */
     updateUIForActiveTrip() {
         this.startButton.disabled = true;
-        this.startButton.textContent = '🚗 Reis Actief';
+        this.startButton.textContent = '🚗 Actief';
         this.destinationInput.disabled = true;
         // Keep next stop input enabled for updates
         this.nextStopInput.disabled = false;

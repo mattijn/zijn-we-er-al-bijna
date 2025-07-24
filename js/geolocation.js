@@ -196,6 +196,91 @@ class GeolocationManager {
     }
 
     /**
+     * Get route information using OSRM for better time calculations
+     */
+    async getRouteInfo(origin, destination) {
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('OSRM route request failed');
+            }
+            
+            const data = await response.json();
+            
+            if (data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+                const leg = route.legs[0];
+                
+                return {
+                    distance: route.distance / 1000, // Convert to kilometers
+                    duration: route.duration / 60, // Convert to minutes
+                    averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
+                    roadTypes: this.analyzeRoadTypes(leg.annotation?.speed || []),
+                    waypoints: leg.annotation?.speed || []
+                };
+            } else {
+                throw new Error('No route found');
+            }
+        } catch (error) {
+            console.warn('OSRM route calculation failed, falling back to Haversine:', error.message);
+            // Fallback to simple distance calculation
+            const distance = this.calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+            return {
+                distance: distance,
+                duration: null, // Will be calculated by progress tracker
+                averageSpeed: null,
+                roadTypes: null,
+                waypoints: null
+            };
+        }
+    }
+
+    /**
+     * Analyze road types from OSRM speed data
+     */
+    analyzeRoadTypes(speedData) {
+        if (!speedData || speedData.length === 0) return null;
+        
+        const roadTypes = {
+            highway: 0,    // Snelweg (> 100 km/h)
+            primary: 0,    // Provinciale weg (80-100 km/h)
+            secondary: 0,  // Secundaire weg (70-80 km/h)
+            residential: 0 // Woonwijk (30-50 km/h)
+        };
+        
+        speedData.forEach(speed => {
+            if (speed > 100) roadTypes.highway++;
+            else if (speed > 80) roadTypes.primary++;
+            else if (speed > 50) roadTypes.secondary++;
+            else roadTypes.residential++;
+        });
+        
+        return roadTypes;
+    }
+
+    /**
+     * Get expected speed based on road type
+     */
+    getExpectedSpeed(roadTypes) {
+        if (!roadTypes) return 80; // Default fallback
+        
+        const total = Object.values(roadTypes).reduce((sum, count) => sum + count, 0);
+        if (total === 0) return 80;
+        
+        // Weighted average based on road type distribution
+        const weightedSpeed = (
+            (roadTypes.highway * 120) +
+            (roadTypes.primary * 90) +
+            (roadTypes.secondary * 75) +
+            (roadTypes.residential * 40)
+        ) / total;
+        
+        return Math.round(weightedSpeed);
+    }
+
+    /**
      * Convert degrees to radians
      */
     toRadians(degrees) {

@@ -1,132 +1,182 @@
 # Zijn we er al bijna? - Car Trip Tracker Development Plan
 
 ## Project Overview
-A mobile-first single-page website to help children track their progress during car trips by showing a visual progress bar from origin to destination, with support for intermediate stops.
+Een mobiel-geoptimaliseerde single-page webapp om kinderen te helpen hun voortgang tijdens autoritten te volgen met een visuele voortgangsbalk van vertrek naar bestemming, inclusief ondersteuning voor tussenstops.
 
-## Core Features
-1. **Address Input Fields**
-   - Final destination address input
-   - Next stop address input (optional)
-   - Origin location (auto-detected or manual input)
+## ✅ Geïmplementeerde Features
 
-2. **Progress Visualization**
-   - Vertical progress bar showing trip completion
-   - Real-time location tracking
-   - Visual indicators for current position vs. destination
+### 🎯 Kernfunctionaliteiten
+1. **Adres Invoer Sectie**
+   - ✅ Eindbestemming adres invoer met geocoding
+   - ✅ Volgende stop adres invoer (optioneel)
+   - ✅ Automatische herkomstlocatie detectie via GPS
+   - ✅ Update functionaliteit voor volgende stop tijdens reis
 
-3. **Mobile-First Design**
-   - Responsive layout optimized for car use
-   - Large, easy-to-tap buttons
-   - Clear, child-friendly interface
+2. **Voortgang Visualisatie**
+   - ✅ Verticale voortgangsbalk voor eindbestemming
+   - ✅ Aparte voortgangsbalk voor volgende stop
+   - ✅ Real-time locatie tracking met GPS
+   - ✅ Visuele indicators voor huidige positie
+   - ✅ Automatische reset van volgende stop voortgang bij updates
 
-## Technical Architecture
+3. **Mobiel-Geoptimaliseerd Design**
+   - ✅ Responsive layout geoptimaliseerd voor auto gebruik
+   - ✅ Grote, makkelijk te tappen knoppen
+   - ✅ Kindvriendelijke interface met emoji's
+   - ✅ Dark mode ondersteuning
+   - ✅ Safari-specifieke optimalisaties
 
-### Frontend Technologies
-- **HTML5/CSS3/JavaScript** - Core web technologies
-- **Geolocation API** - For real-time location tracking
-- **OpenStreetMap Nominatim API** - For address geocoding (free, open-source)
-- **Haversine Formula** - For distance calculations (client-side)
-- **CSS Grid/Flexbox** - For responsive layout
-- **Local Storage** - To persist trip data
+### 📱 Geavanceerde Mobiele Features
+- ✅ **Screen Wake Lock** - Voorkomt dat apparaat in slaapstand gaat tijdens actieve reizen
+- ✅ **Viewport Optimalisatie** - Dynamische viewport hoogte voor kleine schermen (iPhone 13 mini)
+- ✅ **Safe Area Support** - Ondersteuning voor moderne devices met notches
+- ✅ **Safari Compatibiliteit** - Specifieke fixes voor Safari op iOS
+- ✅ **Kleine Scherm Optimalisatie** - Aangepaste layout voor zeer kleine schermen
 
-### Key Components
+### 🎨 UI/UX Verbeteringen
+- ✅ **Consistente Marges** - Uniforme horizontale marges op alle secties
+- ✅ **Slimme Sectie Verbergen** - Status sectie verbergt automatisch wanneer adres sectie open is
+- ✅ **Verbeterde Kleuren** - Betere contrast in dark mode
+- ✅ **Responsive Typografie** - Aangepaste lettergroottes voor verschillende schermformaten
 
-#### 1. Address Input Section
-- Two input fields with autocomplete
-- Address validation and geocoding
-- Save/load trip functionality
+## 🛠️ Technische Architectuur
 
-#### 2. Progress Tracking Section
-- Vertical progress bar component
-- Real-time location updates
-- Distance calculations
-- Visual progress indicators
+### Frontend Technologieën
+- **HTML5/CSS3/JavaScript** - Moderne web standaarden
+- **Geolocation API** - Voor real-time locatie tracking
+- **OpenStreetMap Nominatim API** - Voor gratis adres geocoding
+- **Haversine Formule** - Voor nauwkeurige afstandsberekeningen (client-side)
+- **CSS Grid/Flexbox** - Voor responsive layout
+- **Local Storage** - Voor het opslaan van reisgegevens
+- **Screen Wake Lock API** - Voor het voorkomen van slaapstand
 
-#### 3. Navigation & Controls
-- Start/stop trip tracking
-- Reset trip functionality
+### Belangrijke Componenten
 
-## Development Phases
+#### 1. Adres Invoer Sectie
+- ✅ Twee invoervelden met geocoding
+- ✅ Adres validatie en geocoding via meerdere services
+- ✅ Update functionaliteit voor volgende stop
+- ✅ Automatisch opslaan van reisgegevens
 
-### Phase 1: Core Structure & UI (Day 1)
-- [ ] Create basic HTML structure
-- [ ] Design mobile-first CSS layout
-- [ ] Implement responsive design
-- [ ] Create address input components
-- [ ] Style progress bar component
+#### 2. Voortgang Tracking Sectie
+- ✅ Verticale voortgangsbalk component
+- ✅ Real-time locatie updates
+- ✅ Afstandsberekeningen via Haversine formule
+- ✅ Visuele voortgang indicators
+- ✅ Tijdberekening op basis van gemiddelde snelheid
 
-### Phase 2: Location Services (Day 2)
-- [ ] Implement geolocation API integration
-- [ ] Add OpenStreetMap Nominatim API for geocoding (free, open-source)
-- [ ] Create distance calculation functions using Haversine formula
-- [ ] Implement real-time location tracking
-- [ ] Add error handling for location services
+#### 3. Navigatie & Controles
+- ✅ Start/stop reis tracking
+- ✅ Reset reis functionaliteit
+- ✅ Loading states en error handling
 
-### Phase 3: Progress Logic (Day 3)
-- [ ] Develop progress calculation algorithm
-- [ ] Implement progress bar updates
-- [ ] Add intermediate stop support
-- [ ] Create trip state management
-- [ ] Add start/stop/reset functionality
+## 📊 Huidige Algoritmes
 
-### Phase 4: Data Persistence & Polish (Day 4)
-- [ ] Implement local storage for trip data
-- [ ] Add trip history functionality
-- [ ] Optimize performance for mobile
-- [ ] Add loading states and error handling
-- [ ] Final UI/UX improvements
+### Afstandsberekening
+- **Haversine Formule** - Nauwkeurige afstand tussen GPS coördinaten
+- **Aarde als bol** - 6371 km radius
+- **"Als de kraai vliegt"** - Directe afstand tussen twee punten
 
-## File Structure
+### Tijdberekening
+- **Gemiddelde snelheid** - Berekend op basis van afgelegde afstand en verstreken tijd
+- **Fallback naar 80 km/u** - Als berekende snelheid onrealistisch is (< 20 of > 120 km/u)
+- **Verschil met Google Maps** - App gebruikt eenvoudige berekening vs. Google's real-time verkeer data
+
+### Aankomst Detectie
+- **50 meter threshold** - Reis wordt voltooid binnen 50m van bestemming
+- **Automatische voltooiing** - Geen handmatige actie vereist
+
+## 📁 Bestandsstructuur
 ```
 zijnweeralbijna/
-├── index.html
+├── index.html          # Hoofdpagina met responsive layout
 ├── css/
-│   ├── style.css
-│   └── mobile.css
+│   ├── style.css       # Hoofdstijlen en dark mode
+│   └── mobile.css      # Mobiele optimalisaties en Safari fixes
 ├── js/
-│   ├── app.js
-│   ├── geolocation.js
-│   ├── progress.js
-│   └── storage.js
+│   ├── app.js          # Hoofdapplicatie en UI management
+│   ├── geolocation.js  # Locatie services en geocoding
+│   ├── progress.js     # Voortgang tracking en berekeningen
+│   └── storage.js      # Local storage en data persistentie
 ├── assets/
-│   └── icons/
-└── README.md
+│   └── icons/          # App iconen
+├── plan.md             # Dit ontwikkelplan
+└── README.md           # Project documentatie
 ```
 
-## Technical Considerations
+## 🎯 Voltooide Ontwikkelingsfasen
 
-### Mobile Optimization
-- Touch-friendly interface elements
-- Minimal data usage
-- Battery-efficient location tracking
-- Offline capability for basic functionality
+### ✅ Fase 1: Kernstructuur & UI
+- ✅ Basis HTML structuur
+- ✅ Mobiel-geoptimaliseerde CSS layout
+- ✅ Responsive design
+- ✅ Adres invoer componenten
+- ✅ Voortgangsbalk styling
 
-### User Experience
-- Simple, intuitive interface for children
-- Clear visual feedback
-- Smooth animations
-- Accessible design
+### ✅ Fase 2: Locatie Services
+- ✅ Geolocation API integratie
+- ✅ OpenStreetMap Nominatim API voor geocoding
+- ✅ Afstandsberekening functies met Haversine formule
+- ✅ Real-time locatie tracking
+- ✅ Error handling voor locatie services
 
-### Performance
-- Efficient location polling
-- Optimized distance calculations
-- Minimal API calls
-- Fast loading times
+### ✅ Fase 3: Voortgang Logica
+- ✅ Voortgang berekening algoritme
+- ✅ Voortgangsbalk updates
+- ✅ Tussenstop ondersteuning
+- ✅ Reis state management
+- ✅ Start/stop/reset functionaliteit
 
-## API Requirements
-- **OpenStreetMap Nominatim API** - For address to coordinates conversion (free, open-source)
-- **Geolocation API** - For current position (built-in browser API)
+### ✅ Fase 4: Data Persistentie & Polish
+- ✅ Local storage voor reisgegevens
+- ✅ Loading states en error handling
+- ✅ Mobiele performance optimalisatie
+- ✅ Finale UI/UX verbeteringen
 
-## Testing Strategy
-- Mobile device testing
-- Different screen sizes
-- Location service testing
-- Offline functionality testing
-- Child usability testing
+## 🚀 Mogelijke Verbeteringen
 
-## Future Enhancements
-- Multiple trip support
-- Trip history and statistics
-- Custom themes for children
-- Integration with navigation apps
-- Social sharing features
+### 📈 Tijdberekening Verbeteringen
+- **Real-time verkeer integratie** - API integratie voor actuele verkeersinformatie
+- **Wegtype detectie** - Verschillende snelheden voor snelweg/stad
+- **Slimmere snelheidsberekening** - Gewogen gemiddelde van recente snelheden
+- **Weersomstandigheden** - Aanpassing voor regen/sneeuw
+
+### 🎮 Gebruikerservaring
+- **Geluiden & Notificaties** - Audio feedback bij mijlpalen
+- **Animaties** - Vloeiende overgangen en bewegingen
+- **Gamification** - Badges en achievements voor kinderen
+- **Thema's** - Verschillende kleurenschema's
+
+### 📊 Geavanceerde Features
+- **Meerdere reizen** - Ondersteuning voor meerdere actieve reizen
+- **Reis geschiedenis** - Overzicht van eerdere reizen
+- **Statistieken** - Gemiddelde snelheid, totale reistijd
+- **Social sharing** - Deel reis voortgang met familie
+
+### 🔧 Technische Verbeteringen
+- **Offline functionaliteit** - Werken zonder internetverbinding
+- **Push notificaties** - Meldingen bij aankomst
+- **PWA ondersteuning** - Installeerbaar als app
+- **Backup & sync** - Cloud opslag van reisgegevens
+
+### 🗺️ Kaart Integratie
+- **Visuele route** - Kaartweergave van de reis
+- **Alternatieve routes** - Verschillende route opties
+- **POI's onderweg** - Interessante punten langs de route
+- **Offline kaarten** - Kaarten beschikbaar zonder internet
+
+## 🧪 Test Strategie
+- ✅ Mobiele device testing
+- ✅ Verschillende schermformaten
+- ✅ Locatie service testing
+- ✅ Safari/iOS specifieke testing
+- ✅ Kleine scherm optimalisatie testing
+
+## 📱 Ondersteunde Devices
+- ✅ iPhone (inclusief iPhone 13 mini)
+- ✅ Android devices
+- ✅ iPad/tablets
+- ✅ Desktop browsers (responsive)
+
+## 🎉 Project Status
+**FEATURE COMPLEET** - Alle geplande kernfunctionaliteiten zijn geïmplementeerd en getest. De app is klaar voor productie gebruik en biedt een solide basis voor toekomstige uitbreidingen.
