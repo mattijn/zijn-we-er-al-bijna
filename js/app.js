@@ -93,20 +93,15 @@ class TripApp {
 
         // Settings button (toggle between setup and active trip view)
         this.elements.backToSetupBtn.addEventListener('click', () => {
-            console.log('Settings button clicked!');
-            console.log('isActive:', this.isActive);
-            console.log('addressSection collapsed:', this.elements.addressSection.classList.contains('collapsed'));
-            console.log('button visible:', !this.elements.backToSetupBtn.classList.contains('hidden'));
-            console.log('button text:', this.elements.backToSetupBtn.textContent);
-            
             if (this.isActive && !this.elements.addressSection.classList.contains('collapsed')) {
                 // If we're in active trip and setup is visible, go back to active trip
-                console.log('Going back to active trip');
                 this.handleBackToActiveTrip();
             } else if (this.isActive) {
                 // If we're in active trip and setup is hidden, go to setup
-                console.log('Going to setup');
                 this.handleBackToSetup();
+            } else {
+                // No active trip - toggle setup visibility
+                this.handleToggleSetup();
             }
         });
 
@@ -348,6 +343,23 @@ class TripApp {
     }
 
     /**
+     * Handle toggle setup visibility (when no active trip)
+     */
+    handleToggleSetup() {
+        const isSetupVisible = !this.elements.addressSection.classList.contains('collapsed');
+        
+        if (isSetupVisible) {
+            // Hide setup
+            this.elements.addressSection.classList.add('collapsed');
+            this.elements.progressSection.classList.add('compact');
+        } else {
+            // Show setup
+            this.elements.addressSection.classList.remove('collapsed');
+            this.elements.progressSection.classList.remove('compact');
+        }
+    }
+
+    /**
      * Start a new trip
      * @param {Object} tripData - Trip data object
      */
@@ -491,12 +503,13 @@ class TripApp {
             this.elements.backToSetupBtn.textContent = '🔙 Terug naar Reis';
             this.elements.backToSetupBtn.classList.remove('hidden');
         } else {
-            // No active trip - show start button
+            // No active trip - show start button and settings
             this.elements.startTripBtn.classList.remove('hidden');
             this.elements.updateStopBtn.classList.add('hidden');
             this.elements.stopTripBtn.classList.add('hidden');
             this.elements.resetTripBtn.classList.add('hidden');
-            this.elements.backToSetupBtn.classList.add('hidden');
+            this.elements.backToSetupBtn.classList.remove('hidden');
+            this.elements.backToSetupBtn.textContent = '⚙️';
         }
     }
 

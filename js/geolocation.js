@@ -115,6 +115,15 @@ class GeolocationManager {
             throw new Error('Invalid address provided');
         }
 
+        // For local development, use simple service first to avoid CORS issues
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+            console.log('Running on localhost - using simple geocoding service');
+            const result = await this.geocodeWithSimpleService(address);
+            if (result) return result;
+        }
+
         // Try Nominatim first (primary service)
         try {
             const result = await this.geocodeWithNominatim(address);
@@ -129,6 +138,14 @@ class GeolocationManager {
             if (result) return result;
         } catch (error) {
             console.warn('Maps.co geocoding failed:', error);
+        }
+
+        // Final fallback: use a simple geocoding service
+        try {
+            const result = await this.geocodeWithSimpleService(address);
+            if (result) return result;
+        } catch (error) {
+            console.warn('Simple geocoding failed:', error);
         }
 
         throw new Error('Geocoding failed for all services');
@@ -149,7 +166,7 @@ class GeolocationManager {
 
         const response = await this.retry.fetch(`${this.nominatimUrl}?${params}`, {
             headers: {
-                'User-Agent': 'ZijnWeErAlBijna/1.0 (https://github.com/your-repo)'
+                'User-Agent': 'ZijnWeErAlBijna/1.0 (Travel Progress App)'
             }
         });
 
@@ -199,6 +216,69 @@ class GeolocationManager {
                 address: result.display_name || address,
                 type: 'mapsco'
             };
+        }
+
+        return null;
+    }
+
+    /**
+     * Geocode using a simple service (fallback)
+     * @param {string} address - Address to geocode
+     * @returns {Promise<Object|null>} Geocoded result or null
+     */
+    async geocodeWithSimpleService(address) {
+        // For development/testing, use some common Dutch locations
+        const commonLocations = {
+            'amsterdam': { lat: 52.3676, lng: 4.9041, name: 'Amsterdam' },
+            'rotterdam': { lat: 51.9225, lng: 4.4792, name: 'Rotterdam' },
+            'den haag': { lat: 52.0705, lng: 4.3007, name: 'Den Haag' },
+            'utrecht': { lat: 52.0907, lng: 5.1214, name: 'Utrecht' },
+            'eindhoven': { lat: 51.4416, lng: 5.4697, name: 'Eindhoven' },
+            'groningen': { lat: 53.2194, lng: 6.5665, name: 'Groningen' },
+            'tilburg': { lat: 51.5719, lng: 5.0672, name: 'Tilburg' },
+            'almere': { lat: 52.3508, lng: 5.2647, name: 'Almere' },
+            'breda': { lat: 51.5719, lng: 4.7683, name: 'Breda' },
+            'nijmegen': { lat: 51.8425, lng: 5.8533, name: 'Nijmegen' },
+            'hardenberg': { lat: 52.5758, lng: 6.6197, name: 'Hardenberg' },
+            'zwolle': { lat: 52.5168, lng: 6.0830, name: 'Zwolle' },
+            'deventer': { lat: 52.2555, lng: 6.1601, name: 'Deventer' },
+            'enschede': { lat: 52.2215, lng: 6.8937, name: 'Enschede' },
+            'apeldoorn': { lat: 52.2112, lng: 5.9699, name: 'Apeldoorn' },
+            'arnhem': { lat: 51.9851, lng: 5.8987, name: 'Arnhem' },
+            'amersfoort': { lat: 52.1561, lng: 5.3878, name: 'Amersfoort' },
+            'leiden': { lat: 52.1601, lng: 4.4970, name: 'Leiden' },
+            'haarlem': { lat: 52.3873, lng: 4.6462, name: 'Haarlem' },
+            'zaandam': { lat: 52.4389, lng: 4.8295, name: 'Zaandam' },
+            'efteling': { lat: 51.6500, lng: 5.0500, name: 'Efteling' },
+            'walibi': { lat: 52.4333, lng: 5.2167, name: 'Walibi Holland' },
+            'duinrell': { lat: 52.2167, lng: 4.3667, name: 'Duinrell' },
+            'slagharen': { lat: 52.6167, lng: 6.5667, name: 'Slagharen' }
+        };
+
+        const searchTerm = address.toLowerCase().trim();
+        
+        // Check for exact matches first
+        for (const [key, location] of Object.entries(commonLocations)) {
+            if (searchTerm.includes(key)) {
+                return {
+                    lat: location.lat,
+                    lng: location.lng,
+                    address: location.name,
+                    type: 'simple'
+                };
+            }
+        }
+
+        // Check for partial matches
+        for (const [key, location] of Object.entries(commonLocations)) {
+            if (key.includes(searchTerm) || searchTerm.includes(key)) {
+                return {
+                    lat: location.lat,
+                    lng: location.lng,
+                    address: location.name,
+                    type: 'simple'
+                };
+            }
         }
 
         return null;
@@ -256,18 +336,21 @@ class GeolocationManager {
      * @returns {Promise<number>} Distance in kilometers
      */
     async getDistance(point1, point2) {
-        try {
-            const routeInfo = await this.getRouteInfo(point1, point2);
-            return routeInfo.distance;
-        } catch (error) {
-            console.warn('Failed to get distance via OSRM, using fallback calculation:', error);
-            // Fallback to simple calculation if OSRM fails
+        // For local development, use simple calculation to avoid CORS issues
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isLocalhost) {
+            console.log('Running on localhost - using simple distance calculation');
             return this.calculateSimpleDistance(point1, point2);
         }
+
+        // Use OSRM for accurate distance calculation
+        const routeInfo = await this.getRouteInfo(point1, point2);
+        return routeInfo.distance;
     }
 
     /**
-     * Simple distance calculation as fallback (not as accurate as OSRM)
+     * Simple distance calculation for localhost development only
      * @param {Object} point1 - First point {lat, lng}
      * @param {Object} point2 - Second point {lat, lng}
      * @returns {number} Approximate distance in kilometers

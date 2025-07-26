@@ -494,23 +494,111 @@ body {
     }
 }
 
-@media (max-width: 350px) {
+@media (max-width: 400px) {
     .app {
         padding: 4px;
-        gap: 8px;
+        gap: 6px;
+        min-height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
     }
     
-    .header, .address-section, .progress-section, .second-stats-row {
-        border-radius: var(--radius-sm);
-        padding: var(--spacing-sm);
+    .header {
+        padding: var(--spacing-xs);
+        margin-bottom: 4px;
     }
     
     .title {
-        font-size: 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .address-section, .progress-section, .second-stats-row {
+        border-radius: var(--radius-sm);
+        padding: var(--spacing-xs);
+        margin-bottom: 4px;
+    }
+    
+    .input-group {
+        margin-bottom: var(--spacing-xs);
+    }
+    
+    .input-label {
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+    }
+    
+    .address-input {
+        padding: var(--spacing-xs);
+        font-size: 0.9rem;
+        min-height: 36px;
     }
     
     .btn {
-        padding: var(--spacing-xs) var(--spacing-sm);
+        padding: var(--spacing-xs);
+        font-size: 0.8rem;
+        min-height: 36px;
+        min-width: 80px;
+    }
+    
+    .progress-layout {
+        gap: var(--spacing-xs);
+    }
+    
+    .progress-container {
+        padding: var(--spacing-xs);
+    }
+    
+    .progress-bar {
+        height: 40px;
+    }
+    
+    .progress-car {
+        font-size: 1rem;
+    }
+    
+    .stat-item {
+        padding: var(--spacing-xs);
+    }
+    
+    .stat-header {
+        font-size: 0.7rem;
+    }
+    
+    .stat-value {
+        font-size: 1rem;
+    }
+    
+    .progress-labels {
+        font-size: 0.7rem;
+        margin-bottom: var(--spacing-xs);
+    }
+}
+
+@media (max-width: 350px) {
+    .app {
+        padding: 2px;
+        gap: 4px;
+    }
+    
+    .header {
+        padding: 6px;
+    }
+    
+    .title {
+        font-size: 0.8rem;
+    }
+    
+    .address-section, .progress-section, .second-stats-row {
+        padding: 6px;
+    }
+    
+    .btn {
+        padding: 6px 8px;
+        font-size: 0.7rem;
+        min-width: 60px;
+    }
+    
+    .stat-value {
         font-size: 0.9rem;
     }
 }
