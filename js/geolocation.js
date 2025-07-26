@@ -64,12 +64,55 @@ class GeolocationManager {
     }
 
     /**
+     * Check and request geolocation permissions
+     */
+    async requestPermission() {
+        if (!navigator.permissions || !navigator.permissions.query) {
+            // Fallback for browsers that don't support permissions API
+            return new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    () => resolve(true),
+                    () => resolve(false),
+                    { timeout: 10000 }
+                );
+            });
+        }
+
+        try {
+            const result = await navigator.permissions.query({ name: 'geolocation' });
+            if (result.state === 'granted') {
+                return true;
+            } else if (result.state === 'prompt') {
+                // Request permission by getting position
+                return new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        () => resolve(true),
+                        () => resolve(false),
+                        { timeout: 10000 }
+                    );
+                });
+            }
+            return result.state === 'granted';
+        } catch (error) {
+            console.warn('Could not query geolocation permission:', error);
+            return false;
+        }
+    }
+
+    /**
      * Get current position once
      */
     async getCurrentPosition() {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error('Geolocation is not supported by this browser'));
+                return;
+            }
+
+            // First check/request permission
+            const hasPermission = await this.requestPermission();
+            if (!hasPermission) {
+                reject(new Error('Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.'));
                 return;
             }
 
@@ -86,24 +129,35 @@ class GeolocationManager {
                 return;
             }
 
+            let timeoutId = setTimeout(() => {
+                timeoutId = null;
+                reject(new Error('Locatie ophalen duurde te lang. Controleer je GPS signaal.'));
+            }, options.timeout);
+
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    this.currentPosition = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                        accuracy: position.coords.accuracy,
-                        timestamp: position.timestamp
-                    };
-                    resolve(this.currentPosition);
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        this.currentPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: position.timestamp
+                        };
+                        resolve(this.currentPosition);
+                    }
                 },
                 (error) => {
-                    const errorMessage = this.getErrorMessage(error);
-                    console.error('Geolocation error:', {
-                        code: error.code,
-                        message: error.message,
-                        userMessage: errorMessage
-                    });
-                    reject(new Error(errorMessage));
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        const errorMessage = this.getErrorMessage(error);
+                        console.error('Geolocation error:', {
+                            code: error.code,
+                            message: error.message,
+                            userMessage: errorMessage
+                        });
+                        reject(new Error(errorMessage));
+                    }
                 },
                 options
             );
@@ -123,71 +177,78 @@ class GeolocationManager {
             return;
         }
 
-        this.onLocationUpdate = onUpdate;
-        this.onError = onError;
-        this.isTracking = true;
+        this.requestPermission().then(hasPermission => {
+            if (!hasPermission) {
+                if (onError) onError(new Error('Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.'));
+                return;
+            }
 
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 20000, // Increased timeout for mobile
-            maximumAge: 15000 // Reduced cache time for more frequent updates
-        };
+            this.onLocationUpdate = onUpdate;
+            this.onError = onError;
+            this.isTracking = true;
 
-        // Get initial position
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                this.currentPosition = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    timestamp: position.timestamp
-                };
-                
-                if (this.onLocationUpdate) {
-                    this.onLocationUpdate(this.currentPosition);
-                }
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 20000, // Increased timeout for mobile
+                maximumAge: 15000 // Reduced cache time for more frequent updates
+            };
 
-                // Start watching after initial position
-                this.watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        this.currentPosition = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                            accuracy: position.coords.accuracy,
-                            timestamp: position.timestamp
-                        };
-                        
-                        if (this.onLocationUpdate) {
-                            this.onLocationUpdate(this.currentPosition);
-                        }
-                    },
-                    (error) => {
-                        const errorMessage = this.getErrorMessage(error);
-                        console.error('Geolocation watch error:', {
-                            code: error.code,
-                            message: error.message,
-                            userMessage: errorMessage
-                        });
-                        if (this.onError) {
-                            this.onError(new Error(errorMessage));
-                        }
-                    },
-                    options
-                );
-            },
-            (error) => {
-                const errorMessage = this.getErrorMessage(error);
-                console.error('Initial geolocation error:', {
-                    code: error.code,
-                    message: error.message,
-                    userMessage: errorMessage
-                });
-                if (this.onError) {
-                    this.onError(new Error(errorMessage));
-                }
-            },
-            options
-        );
+            // Get initial position
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    this.currentPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        timestamp: position.timestamp
+                    };
+                    
+                    if (this.onLocationUpdate) {
+                        this.onLocationUpdate(this.currentPosition);
+                    }
+
+                    // Start watching after initial position
+                    this.watchId = navigator.geolocation.watchPosition(
+                        (position) => {
+                            this.currentPosition = {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                accuracy: position.coords.accuracy,
+                                timestamp: position.timestamp
+                            };
+                            
+                            if (this.onLocationUpdate) {
+                                this.onLocationUpdate(this.currentPosition);
+                            }
+                        },
+                        (error) => {
+                            const errorMessage = this.getErrorMessage(error);
+                            console.error('Geolocation watch error:', {
+                                code: error.code,
+                                message: error.message,
+                                userMessage: errorMessage
+                            });
+                            if (this.onError) {
+                                this.onError(new Error(errorMessage));
+                            }
+                        },
+                        options
+                    );
+                },
+                (error) => {
+                    const errorMessage = this.getErrorMessage(error);
+                    console.error('Initial geolocation error:', {
+                        code: error.code,
+                        message: error.message,
+                        userMessage: errorMessage
+                    });
+                    if (this.onError) {
+                        this.onError(new Error(errorMessage));
+                    }
+                },
+                options
+            );
+        });
     }
 
     /**
@@ -500,7 +561,7 @@ class GeolocationManager {
             case error.POSITION_UNAVAILABLE:
                 return 'Locatie informatie is niet beschikbaar. Controleer of GPS is ingeschakeld.';
             case error.TIMEOUT:
-                return 'Locatie ophalen duurde te lang. Controleer je internetverbinding en GPS signaal.';
+                return 'Locatie ophalen duurde te lang. Controleer je GPS signaal en internetverbinding.';
             default:
                 return `Er is een fout opgetreden bij het ophalen van je locatie: ${error.message}`;
         }
