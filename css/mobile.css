@@ -68,8 +68,53 @@
         flex: 1.6; /* Slightly reduce to give more space */
     }
     
+    /* Stats Column */
     .stats-column {
-        flex: 0.4; /* Increase stats column width */
+        flex: 0.4; /* Give more space to stats */
+    }
+    
+    .stats-card {
+        padding: 20px;
+        gap: 15px;
+        max-width: 200px;
+    }
+    
+    .stat-item {
+        gap: 12px;
+        padding: 10px;
+    }
+    
+    .stat-icon {
+        font-size: 1.6rem;
+        width: 44px; /* Maintain touch target size */
+        height: 44px;
+    }
+    
+    .stat-label {
+        font-size: 1rem; /* Maintain minimum 16px */
+    }
+    
+    .stat-value {
+        font-size: 1.4rem; /* Slightly smaller but still readable */
+    }
+    
+    /* Status Stats */
+    .status-stats {
+        padding: 20px;
+    }
+    
+    .status-stats .stat-item {
+        padding: 12px;
+        margin-bottom: 12px;
+        min-height: 44px;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 1.6rem;
+    }
+    
+    .status-stats .stat-label {
+        font-size: 1rem;
     }
     
     /* Ensure progress bar fits well on mobile */
@@ -238,13 +283,50 @@
         flex: 1.4;
     }
     
+    /* Stats Column */
     .stats-column {
-        flex: 0.6;
+        flex: 0.5;
     }
     
-    .progress-bar {
-        width: 45px;
-        min-height: 200px; /* Reduced from 250px to fit better on small screens */
+    .stats-card {
+        padding: 15px;
+        gap: 12px;
+        max-width: 150px;
+    }
+    
+    .stat-item {
+        gap: 10px;
+        padding: 8px;
+        min-height: 44px;
+    }
+    
+    .stat-icon {
+        font-size: 1.4rem;
+        width: 44px;
+        height: 44px;
+    }
+    
+    .stat-label {
+        font-size: 1rem; /* Maintain minimum 16px */
+    }
+    
+    .stat-value {
+        font-size: 1.3rem;
+    }
+    
+    /* Status Stats */
+    .status-stats {
+        padding: 15px;
+    }
+    
+    .status-stats .stat-item {
+        padding: 10px;
+        margin-bottom: 10px;
+        min-height: 44px;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 1.4rem;
     }
     
     /* Reduce gap between progress bars on small screens */
@@ -322,6 +404,26 @@
         margin-top: 5px;
     }
     
+    /* Status Stats */
+    .status-stats {
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .status-stats .stat-item {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 1.3rem;
+    }
+    
+    /* Stats Column */
+    .stats-column {
+        flex: 0.6;
+    }
+    
     .stats-card {
         padding: 8px;
         gap: 4px;
@@ -394,18 +496,50 @@
         flex: 1.5; /* Reduce flex to give more space */
     }
     
+    /* Stats Column */
     .stats-column {
-        flex: 0.5; /* Increase stats column width */
+        flex: 0.4;
     }
     
-    .progress-bar {
-        width: 50px; /* Smaller progress bar */
-        min-height: 200px; /* Reduced from 280px to fit better on small screens */
+    .stats-card {
+        padding: 12px;
+        gap: 10px;
+        max-width: 130px;
     }
     
-    /* Reduce gap between progress bars on very small screens */
-    .progress-bars-container {
-        gap: 25px;
+    .stat-item {
+        gap: 8px;
+        padding: 6px;
+        min-height: 44px;
+    }
+    
+    .stat-icon {
+        font-size: 1.3rem;
+        width: 44px;
+        height: 44px;
+    }
+    
+    .stat-label {
+        font-size: 1rem; /* Maintain minimum 16px */
+    }
+    
+    .stat-value {
+        font-size: 1.2rem;
+    }
+    
+    /* Status Stats */
+    .status-stats {
+        padding: 12px;
+    }
+    
+    .status-stats .stat-item {
+        padding: 8px;
+        margin-bottom: 8px;
+        min-height: 44px;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 1.3rem;
     }
     
     /* Hide vertical labels on small screens, show only top/bottom labels */
@@ -423,10 +557,30 @@
         margin-bottom: 0;
     }
     
+    /* Status Stats */
+    .status-stats {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .status-stats .stat-item {
+        padding: 10px;
+        margin-bottom: 6px;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 1.2rem;
+    }
+    
+    /* Stats Column */
+    .stats-column {
+        flex: 0.5;
+    }
+    
     .stats-card {
         padding: 6px;
         gap: 3px;
-        max-width: 100px;
+        /* max-width: 100px; */
     }
     
     .stat-item {
@@ -807,6 +961,21 @@
         outline: 2px solid #4a9eff;
         outline-offset: 2px;
     }
+    
+    /* Status Stats */
+    .status-stats {
+        background: #2d2d2d;
+        border: 1px solid #444444;
+    }
+    
+    .status-stats .stat-item {
+        background: #1e1e1e;
+        border: 1px solid #333333;
+    }
+    
+    .status-stats .stat-value {
+        color: #ffffff;
+    }
 }
 
 /* Reduced motion preferences */
@@ -839,4 +1008,232 @@
 /* Ensure proper contrast ratios */
 .info-label {
     color: #555;
+} 
+
+/* Extra small screens - optimized layout */
+@media (max-width: 400px) {
+    /* Container adjustments */
+    .container {
+        padding: 10px;
+    }
+
+    /* Header adjustments */
+    .header {
+        margin-bottom: 10px;
+        padding: 10px 0;
+    }
+
+    .title {
+        font-size: 1.4rem;
+    }
+
+    /* Main content spacing */
+    .main-content {
+        gap: 10px;
+    }
+
+    /* Address section */
+    .address-section {
+        padding: 15px;
+    }
+
+    .input-group {
+        margin-bottom: 10px;
+    }
+
+    .address-input {
+        padding: 12px;
+    }
+
+    .button-group {
+        gap: 10px;
+    }
+
+    /* Progress section */
+    .progress-section {
+        padding: 15px;
+    }
+
+    .progress-layout {
+        gap: 15px;
+    }
+
+    /* Progress column */
+    .progress-column {
+        flex: 1.4; /* Slightly reduce width */
+    }
+
+    .progress-bar {
+        width: 40px; /* Narrower bars */
+        min-height: 180px; /* Shorter bars */
+    }
+
+    .progress-bars-container {
+        gap: 20px; /* Reduce gap between bars */
+    }
+
+    /* Stats column */
+    .stats-column {
+        flex: 0.6; /* Give more space to stats */
+    }
+
+    .stats-card {
+        padding: 12px;
+        gap: 8px;
+        max-width: 120px;
+    }
+
+    .stat-item {
+        /* padding: 8px; */
+        min-height: 44px;
+        gap: 8px;
+    }
+
+    .stat-icon {
+        font-size: 1.2rem;
+        width: 44px;
+        height: 44px;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        margin-bottom: 2px;
+    }
+
+    .stat-value {
+        font-size: 1.1rem;
+    }
+
+    /* Status section */
+    .status-section {
+        margin-bottom: 20px;
+    }
+
+    .status-stats {
+        padding: 12px;
+    }
+
+    .status-stats .stat-item {
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .status-stats .stat-value {
+        font-size: 1.2rem;
+    }
+
+    /* Toast adjustments */
+    .toast-container {
+        top: 10px;
+        max-width: 300px;
+    }
+
+    .toast {
+        padding: 12px 15px;
+        gap: 8px;
+        margin: 0 5px;
+    }
+
+    .toast-icon {
+        font-size: 1.2rem;
+        width: 20px;
+    }
+
+    .toast-content {
+        font-size: 0.9rem;
+    }
+}
+
+/* Very small screens - further optimizations */
+@media (max-width: 350px) {
+    /* Container */
+    .container {
+        padding: 8px;
+    }
+
+    /* Header */
+    .header {
+        margin-bottom: 8px;
+        padding: 8px 0;
+    }
+
+    .title {
+        font-size: 1.2rem;
+    }
+
+    /* Main content */
+    .main-content {
+        gap: 8px;
+    }
+
+    /* Progress section */
+    .progress-section {
+        padding: 12px;
+    }
+
+    .progress-layout {
+        gap: 12px;
+    }
+
+    /* Progress bars */
+    .progress-bar {
+        width: 35px;
+        min-height: 160px;
+    }
+
+    .progress-bars-container {
+        gap: 15px;
+    }
+
+    /* Stats */
+    .stats-card {
+        padding: 10px;
+        gap: 6px;
+        max-width: 100px;
+    }
+
+    .stat-item {
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .stat-icon {
+        font-size: 1.1rem;
+    }
+
+    .stat-value {
+        font-size: 1rem;
+    }
+
+    /* Status stats */
+    .status-stats {
+        padding: 10px;
+    }
+
+    .status-stats .stat-item {
+        padding: 8px;
+        margin-bottom: 6px;
+    }
+
+    .status-stats .stat-value {
+        font-size: 1.1rem;
+    }
+}
+
+/* Landscape mode optimizations */
+@media (max-width: 400px) and (orientation: landscape) {
+    /* Adjust progress bars for landscape */
+    .progress-bar {
+        min-height: 140px;
+    }
+
+    /* Compact stats for landscape */
+    .stats-card,
+    .status-stats {
+        padding: 8px;
+    }
+
+    .stat-item {
+        padding: 6px;
+    }
 } 

@@ -1,4 +1,49 @@
 /**
+ * Model Retry class for handling retries with exponential backoff
+ */
+class ModelRetry {
+    constructor(maxAttempts = 3, baseDelay = 1000) {
+        this.maxAttempts = maxAttempts;
+        this.baseDelay = baseDelay;
+        this.attempts = 0;
+        this.isWaiting = false;
+    }
+
+    async execute(operation) {
+        while (this.attempts < this.maxAttempts) {
+            try {
+                const result = await operation();
+                this.reset();
+                return result;
+            } catch (error) {
+                this.attempts++;
+                
+                if (this.attempts >= this.maxAttempts) {
+                    this.isWaiting = true;
+                    console.warn(`All ${this.maxAttempts} attempts failed, waiting 30s before resetting`);
+                    await new Promise(resolve => setTimeout(resolve, 30000)); // 30s wait
+                    this.reset();
+                    throw new Error('Operation failed after multiple attempts. Please check your internet connection.');
+                }
+                
+                const delay = this.baseDelay * Math.pow(2, this.attempts - 1);
+                console.warn(`Attempt ${this.attempts} failed, retrying in ${delay}ms`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    reset() {
+        this.attempts = 0;
+        this.isWaiting = false;
+    }
+
+    isRetrying() {
+        return this.attempts > 0;
+    }
+}
+
+/**
  * Geolocation Module
  * Handles current location tracking and address geocoding using OpenStreetMap Nominatim API
  */
@@ -10,6 +55,7 @@ class GeolocationManager {
         this.isTracking = false;
         this.onLocationUpdate = null;
         this.onError = null;
+        this.modelRetry = new ModelRetry();
     }
 
     /**
@@ -178,28 +224,49 @@ class GeolocationManager {
     }
 
     /**
-     * Calculate distance between two points using Haversine formula
+     * Calculate distance between two points using OSRM with retry logic
      */
-    calculateDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371; // Earth's radius in kilometers
-        const dLat = this.toRadians(lat2 - lat1);
-        const dLng = this.toRadians(lng2 - lng1);
-        
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
-                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = R * c;
-        
-        return distance;
+    async calculateDistance(lat1, lng1, lat2, lng2) {
+        try {
+            const origin = { lat: lat1, lng: lng1 };
+            const destination = { lat: lat2, lng: lng2 };
+            const routeInfo = await this.modelRetry.execute(async () => {
+                const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('OSRM route request failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const leg = route.legs[0];
+                    
+                    return {
+                        distance: route.distance / 1000, // Convert to kilometers
+                        duration: route.duration / 60, // Convert to minutes
+                        averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
+                        roadTypes: this.analyzeRoadTypes(leg.annotation?.speed || []),
+                        waypoints: leg.annotation?.speed || []
+                    };
+                } else {
+                    throw new Error('No route found');
+                }
+            });
+            return routeInfo.distance;
+        } catch (error) {
+            console.error('OSRM distance calculation failed:', error);
+            throw new Error('Could not calculate distance. Please check your internet connection.');
+        }
     }
 
     /**
-     * Get route information using OSRM for better time calculations
+     * Get route information using OSRM with retry logic
      */
     async getRouteInfo(origin, destination) {
-        try {
+        return this.modelRetry.execute(async () => {
             const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
             
             const response = await fetch(url);
@@ -223,18 +290,7 @@ class GeolocationManager {
             } else {
                 throw new Error('No route found');
             }
-        } catch (error) {
-            console.warn('OSRM route calculation failed, falling back to Haversine:', error.message);
-            // Fallback to simple distance calculation
-            const distance = this.calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
-            return {
-                distance: distance,
-                duration: null, // Will be calculated by progress tracker
-                averageSpeed: null,
-                roadTypes: null,
-                waypoints: null
-            };
-        }
+        });
     }
 
     /**

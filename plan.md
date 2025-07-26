@@ -35,9 +35,61 @@ Een mobiel-geoptimaliseerde single-page webapp om kinderen te helpen hun voortga
 
 ### 🎨 UI/UX Verbeteringen
 - ✅ **Consistente Marges** - Uniforme horizontale marges op alle secties
-- ✅ **Slimme Sectie Verbergen** - Status sectie verbergt automatisch wanneer adres sectie open is
-- ✅ **Verbeterde Kleuren** - Betere contrast in dark mode
-- ✅ **Responsive Typografie** - Aangepaste lettergroottes voor verschillende schermformaten
+- ✅ **Verbeterde Statistieken Layout** - Logische verdeling over bestaande kolommen:
+  [Stats-Column]
+  - Tijd resterend (⏰) - Primaire tijdsindicator
+  - Gereisd (🚗) - Afgelegde afstand
+  - Voortgang (📊) - Percentage voortgang
+  [Status-Section]
+  - Volgende stop (⏸️) - Secundaire tijdsindicator
+  - Afstand resterend (📏) - Te gaan afstand
+- ✅ **Status Sectie Transformatie** - Van meldingen naar statistieken:
+  - Verwijdering van status meldingen
+  - Hergebruik voor complementaire statistieken
+  - Belangrijke meldingen als toast/banner
+- ✅ **Mobiele Optimalisatie** - Specifieke layout voor kleine schermen:
+  - Minimale tekstgrootte 16px
+  - Touch targets minimaal 44x44px
+  - Optimale weergave < 400px
+  - Behoud van logische statistiek groepering
+- ✅ **Statistiek Grid** - Flexibel twee-koloms systeem:
+  - Logische paren (tijd/tijd, afstand/afstand)
+  - Voortgang prominent in hoofdkolom
+  - Consistente padding en spacing
+
+### 📱 Geavanceerde Mobiele Features
+- ✅ **Screen Wake Lock** - Voorkomt dat apparaat in slaapstand gaat tijdens actieve reizen
+- ✅ **Viewport Optimalisatie** - Dynamische viewport hoogte voor kleine schermen (iPhone 13 mini)
+- ✅ **Safe Area Support** - Ondersteuning voor moderne devices met notches
+- ✅ **Safari Compatibiliteit** - Specifieke fixes voor Safari op iOS
+- ✅ **Kleine Scherm Optimalisatie** - Verbeterde statistiek weergave voor zeer kleine schermen
+- ✅ **Touch Optimalisatie** - Grotere touch targets voor statistiek elementen
+
+### 🔄 Layout Wijzigingen
+- ✅ **Status Sectie Hergebruik** - Volledige transformatie naar statistiek weergave:
+  - Complementaire statistieken naast hoofdkolom
+  - Logische koppeling van gerelateerde waarden
+  - Behoud van essentiële meldingen via toast systeem
+- ✅ **Statistiek Herstructurering** - Nieuwe logische verdeling:
+  - Tijd-gerelateerd (⏰ en ⏸️) gekoppeld
+  - Afstand-gerelateerd (🚗 en 📏) gekoppeld
+  - Voortgang (📊) zelfstandig in hoofdkolom
+- ✅ **Flexibele Grid Layout** - Responsive systeem:
+  - < 400px: Compacte twee-koloms weergave
+  - > 400px: Ruime twee-koloms layout
+  - Consistente groottes en spacing
+- ✅ **Verticale Ruimte Optimalisatie** - Efficiënt ruimtegebruik:
+  - Verwijdering overbodige status sectie
+  - Integratie van statistieken
+  - Behoud van essentiële meldingen
+- ✅ **Consistente Statistiek Formaat** - Uniforme styling:
+  - Grote, leesbare cijfers (min. 24px)
+  - Duidelijke eenheden (km, %)
+  - Hoog contrast kleuren
+- ✅ **Responsieve Breakpoints** - Specifieke layouts:
+  - < 400px: Vereenvoudigde weergave
+  - 400px - 600px: Basis grid
+  - > 600px: Uitgebreide layout
 
 ## 🛠️ Technische Architectuur
 
@@ -73,9 +125,14 @@ Een mobiel-geoptimaliseerde single-page webapp om kinderen te helpen hun voortga
 ## 📊 Huidige Algoritmes
 
 ### Afstandsberekening
-- **Haversine Formule** - Nauwkeurige afstand tussen GPS coördinaten
-- **Aarde als bol** - 6371 km radius
-- **"Als de kraai vliegt"** - Directe afstand tussen twee punten
+- **OSRM API** - Nauwkeurige routeberekening via Open Source Routing Machine
+- **Real-time routes** - Gebruik van actuele weginformatie
+- **Fallback mechanisme** - Als OSRM niet beschikbaar is, wacht 30 seconden en probeer opnieuw
+
+### Polling & Retry Mechanisme
+- **ModelRetry** - Tot 3 pogingen bij falende polls tijdens actieve reis
+- **30 seconden wachttijd** - Na 3 mislukte pogingen, wacht 30 seconden voor nieuwe poging
+- **Foutafhandeling** - Duidelijke gebruikersfeedback bij connectieproblemen
 
 ### Tijdberekening
 - **Gemiddelde snelheid** - Berekend op basis van afgelegde afstand en verstreken tijd
@@ -142,10 +199,10 @@ zijnweeralbijna/
 - **Weersomstandigheden** - Aanpassing voor regen/sneeuw
 
 ### 🎮 Gebruikerservaring
-- **Geluiden & Notificaties** - Audio feedback bij mijlpalen
 - **Animaties** - Vloeiende overgangen en bewegingen
 - **Gamification** - Badges en achievements voor kinderen
 - **Thema's** - Verschillende kleurenschema's
+- **Geen Audio** - Bewuste keuze voor een stille app zonder geluidseffecten
 
 ### 📊 Geavanceerde Features
 - **Meerdere reizen** - Ondersteuning voor meerdere actieve reizen
@@ -154,12 +211,15 @@ zijnweeralbijna/
 - **Social sharing** - Deel reis voortgang met familie
 
 ### 🔧 Technische Verbeteringen
+- **OSRM Integratie** - Overstap van Haversine naar OSRM voor nauwkeurige routeberekening
+- **Robuuste Polling** - Implementatie van ModelRetry met 3 pogingen en 30s wachttijd
+- **Verwijdering Audio** - Uitschakelen van alle geluidseffecten en audio feedback
 - **Offline functionaliteit** - Werken zonder internetverbinding
 - **Push notificaties** - Meldingen bij aankomst
 - **PWA ondersteuning** - Installeerbaar als app
 - **Backup & sync** - Cloud opslag van reisgegevens
 
-### 🗺️ Kaart Integratie
+### ��️ Kaart Integratie
 - **Visuele route** - Kaartweergave van de reis
 - **Alternatieve routes** - Verschillende route opties
 - **POI's onderweg** - Interessante punten langs de route
@@ -180,3 +240,53 @@ zijnweeralbijna/
 
 ## 🎉 Project Status
 **FEATURE COMPLEET** - Alle geplande kernfunctionaliteiten zijn geïmplementeerd en getest. De app is klaar voor productie gebruik en biedt een solide basis voor toekomstige uitbreidingen.
+
+## 📋 Huidige Todo's
+
+### Layout Wijzigingen
+1. **[TODO] Layout Herstructurering**
+   - Verplaats statistieken naar nieuwe locaties in index.html:
+   - ⏰ Tijd resterend → stats-column (bovenaan)
+   - 🚗 Gereisd → stats-column (midden)
+   - 📊 Voortgang → stats-column (onderaan)
+   - ⏸️ Volgende stop → status-section (bovenaan)
+   - 📏 Afstand resterend → status-section (onderaan)
+
+2. **[TODO] Statistieken Vergroting**
+   - Vergroot statistieken in CSS (style.css & mobile.css):
+   - Minimale tekstgrootte: 16px
+   - Statistiek cijfers: 24px
+   - Touch targets: 44x44px
+
+3. **[TODO] Toast Systeem**
+   - Vervang status meldingen door toast/banner systeem:
+   - Verwijder huidige status-section meldingen
+   - Voeg toast/banner component toe voor meldingen
+
+4. **[TODO] Mobiele Optimalisatie**
+   - Optimaliseer layout voor kleine schermen (< 400px):
+   - Behoud twee-koloms indeling
+   - Compacte weergave van statistieken
+   - Aanpassen padding/margins
+
+### Technische Wijzigingen
+5. **[TODO] OSRM Integratie**
+   - Vervang Haversine door OSRM in progress.js:
+   - Verwijder Haversine berekeningen
+   - Implementeer OSRM route berekening
+   - Update afstandsberekening logica
+   - Pas tests en foutafhandeling aan
+
+6. **[TODO] Robuust Polling**
+   - Implementeer robuust OSRM polling systeem:
+   - Voeg ModelRetry class toe (max 3 pogingen)
+   - Implementeer 30s wachttijd na falen
+   - Toevoegen foutmeldingen voor gebruiker
+   - Update progress tracking logica
+
+7. **[TODO] Audio Verwijdering**
+   - Verwijder alle audio functionaliteit:
+   - Verwijder playCompletionSound uit app.js
+   - Verwijder alle audio-gerelateerde code
+   - Verwijder Web Audio API implementatie
+   - Test voltooiing zonder geluid

@@ -145,7 +145,7 @@ body {
     font-weight: 600;
     color: #333;
     margin-bottom: 8px;
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .address-input {
@@ -412,44 +412,123 @@ body {
 .stats-card {
     background: #f8f9fa;
     border-radius: 15px;
-    padding: 20px;
+    padding: 25px; /* Increased from 20px */
     border: 1px solid #e1e5e9;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 20px; /* Increased from 15px */
     width: 100%;
-    max-width: 200px;
+    max-width: 250px; /* Increased from 200px */
 }
 
 .stat-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    min-height: 44px;
+}
+
+.stat-header {
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 10px 0;
+    gap: 8px;
 }
 
 .stat-icon {
-    font-size: 1.5rem;
-    width: 40px;
-    text-align: center;
+    font-size: 1.2rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
 }
 
+.stat-title {
+    font-size: 0.75rem;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .stat-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex: 1;
 }
 
-.stat-label {
-    font-weight: 500;
-    color: #666;
-    font-size: 0.9rem;
-    margin-bottom: 2px;
+.stat-value {
+    font-size: 2.4rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    font-family: 'Courier New', monospace;
+    letter-spacing: -0.3px;
 }
 
-.stat-value {
-    font-weight: 700;
-    color: #333;
-    font-size: 1.3rem;
+/* Specifieke styling voor tijd-waarden */
+#remaining-time,
+#next-stop-time {
+    letter-spacing: -0.8px;
+}
+
+/* Specifieke styling voor afstand-waarden */
+#traveled-distance,
+#remaining-distance {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Larger values for status-stats */
+.status-stats .stat-value {
+    font-size: 2.6rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 2.2rem;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 2.4rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .stat-value {
+        font-size: 2rem;
+    }
+    
+    .status-stats .stat-value {
+        font-size: 2.2rem;
+    }
+
+    .stat-header {
+        gap: 6px;
+    }
+
+    .stat-icon {
+        font-size: 1.1rem;
+        width: 20px;
+        height: 20px;
+    }
+
+    .stat-title {
+        font-size: 0.7rem;
+    }
+}
+
+.stat-label {
+    font-weight: 600; /* Increased from 500 */
+    color: #666;
+    font-size: 1rem; /* Increased from 0.9rem */
+    margin-bottom: 4px; /* Increased from 2px */
 }
 
 /* Trip Info (legacy - keeping for compatibility) */
@@ -491,6 +570,9 @@ body {
 .status-section {
     margin-bottom: 50px;
     transition: opacity 0.3s ease, transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .status-section.hidden {
@@ -507,6 +589,43 @@ body {
     min-height: 300px; /* Reduced from 350px to give more space to address section */
 }
 
+/* Status Stats */
+.status-stats {
+    display: flex;
+    gap: 15px;
+    margin: 0 10px;
+}
+
+.status-stats .stat-item {
+    flex: 1;
+    min-width: 150px;
+}
+
+@media (max-width: 400px) {
+    .status-stats {
+        gap: 10px;
+    }
+
+    .status-stats .stat-item {
+        min-width: 120px;
+    }
+}
+
+.status-stats .stat-item:last-child {
+    margin-bottom: 0;
+}
+
+.status-stats .stat-value {
+    font-size: 1.8rem; /* Even larger for status stats */
+    line-height: 1.2;
+}
+
+.status-stats .stat-label {
+    font-size: 1.1rem; /* Larger than regular stats */
+    margin-bottom: 6px;
+}
+
+/* Status Card */
 .status-card {
     background: white;
     border-radius: 15px;
@@ -583,4 +702,176 @@ body {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+} 
+
+/* Toast System */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 400px;
+    pointer-events: none; /* Allow clicking through container */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: white;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+    pointer-events: auto; /* Re-enable clicking on toast */
+    margin: 0 10px;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+
+.toast-content {
+    flex: 1;
+    font-size: 1rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.toast-close {
+    font-size: 1.2rem;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+    margin: -4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+/* Toast Types */
+.toast.success {
+    background: #ecfdf5;
+    border: 1px solid #059669;
+}
+
+.toast.error {
+    background: #fef2f2;
+    border: 1px solid #dc2626;
+}
+
+.toast.info {
+    background: #eff6ff;
+    border: 1px solid #3b82f6;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .toast {
+        background: #2d2d2d;
+        border: 1px solid #444444;
+    }
+    
+    .toast-content {
+        color: #ffffff;
+    }
+    
+    .toast-close {
+        color: #aaaaaa;
+    }
+    
+    .toast.success {
+        background: #064e3b;
+        border: 1px solid #059669;
+    }
+    
+    .toast.error {
+        background: #7f1d1d;
+        border: 1px solid #dc2626;
+    }
+    
+    .toast.info {
+        background: #1e3a8a;
+        border: 1px solid #3b82f6;
+    }
+} 
+
+.status-section .status-stats {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    margin-left: 10px;
+    margin-right: 10px;
+    max-width: none;
+    display: flex;
+    flex-direction: row; /* Force horizontal */
+    justify-content: space-between; /* Spread items */
+    align-items: stretch;
+    gap: 15px;
+}
+
+.status-section .status-stats .stat-item {
+    flex: 1 1 calc(50% - 7.5px); /* Equal width, minus half the gap */
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    margin: 0; /* Remove any margins */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+/* Adjust for mobile */
+@media (max-width: 400px) {
+    .status-section .status-stats {
+        padding: 15px;
+        gap: 10px;
+    }
+
+    .status-section .status-stats .stat-item {
+        flex: 1 1 calc(50% - 5px); /* Adjust for smaller gap */
+        padding: 12px;
+    }
+} 
+
+@media (max-width: 768px) {
+    .status-stats .stat-label {
+        font-size: 0.8rem;
+    }
+} 
+
+/* Mobile adjustments */
+@media (max-width: 400px) {
+    .stat-title {
+        font-size: 0.7rem;
+        padding: 0 0px;
+    }
+} 
+
+.stat-item.hidden {
+    display: none;
+}
+
+/* Als er maar 1 stat-item zichtbaar is in status-stats, maak deze volle breedte */
+.status-stats:has(.stat-item:not(.hidden):only-of-type) .stat-item {
+    flex: 1 1 100%;
 } 

@@ -12,6 +12,8 @@ class TripApp {
         this.destinationInput = null;
         this.nextStopInput = null;
         this.wakeLock = null;
+        this.nextStopStatItem = document.querySelector('.stat-item:has(#next-stop-time)');
+        this.updateNextStopVisibility();
         
         this.init();
     }
@@ -194,6 +196,7 @@ class TripApp {
             
             this.hideLoading();
             this.updateUIForActiveTrip();
+            this.updateNextStopVisibility(); // Add this line
             this.showSuccess('Reis gestart! Je locatie wordt nu bijgehouden.');
             
         } catch (error) {
@@ -248,6 +251,7 @@ class TripApp {
             await window.progressTracker.updateNextStop(nextStop);
             
             this.hideLoading();
+            this.updateNextStopVisibility(); // Add this line
             this.showSuccess('Volgende stop bijgewerkt!');
             
         } catch (error) {
@@ -341,9 +345,6 @@ class TripApp {
         
         // Show completion message
         this.showSuccess('🎉 Gefeliciteerd! Je bent aangekomen op je bestemming!');
-        
-        // Play completion sound if available
-        this.playCompletionSound();
     }
 
     /**
@@ -534,72 +535,71 @@ class TripApp {
      * Show error message
      */
     showError(message) {
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '⚠️';
-            statusText.textContent = message;
-            
-            // Auto-clear error after 5 seconds
-            setTimeout(() => {
-                if (statusText.textContent === message) {
-                    statusIcon.textContent = '📍';
-                    statusText.textContent = 'Klaar om te beginnen!';
-                }
-            }, 5000);
-        }
+        this.showToast(message, 'error', '⚠️', 5000);
     }
 
     /**
      * Show success message
      */
     showSuccess(message) {
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '✅';
-            statusText.textContent = message;
-            
-            // Auto-clear success after 3 seconds
-            setTimeout(() => {
-                if (statusText.textContent === message) {
-                    statusIcon.textContent = '📍';
-                    statusText.textContent = 'Klaar om te beginnen!';
-                }
-            }, 3000);
-        }
+        this.showToast(message, 'success', '✅', 3000);
     }
 
     /**
-     * Play completion sound (if supported)
+     * Show info message
      */
-    playCompletionSound() {
-        try {
-            // Create a simple beep sound using Web Audio API
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
-            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.2);
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (error) {
-            // Sound not supported, ignore
-            console.log('Audio not supported');
+    showInfo(message) {
+        this.showToast(message, 'info', 'ℹ️', 3000);
+    }
+
+    /**
+     * Show toast notification
+     */
+    showToast(message, type = 'info', icon = 'ℹ️', duration = 3000) {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) return;
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="toast-icon">${icon}</div>
+            <div class="toast-content">${message}</div>
+            <div class="toast-close">×</div>
+        `;
+
+        // Add to container
+        toastContainer.appendChild(toast);
+
+        // Show animation
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        // Close button handler
+        const closeBtn = toast.querySelector('.toast-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            });
         }
+
+        // Auto remove after duration
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, duration);
+    }
+
+    /**
+     * Handle location errors
+     */
+    handleLocationError(error) {
+        console.error('Location tracking error:', error);
+        this.showError('Locatie probleem: ' + error.message);
     }
 
     /**
@@ -676,6 +676,17 @@ class TripApp {
                 // Address section is expanded (editing), hide status
                 statusSection.classList.add('hidden');
             }
+        }
+    }
+
+    /**
+     * Update next stop visibility based on trip data
+     */
+    updateNextStopVisibility() {
+        if (this.nextStopStatItem) {
+            const tripData = window.progressTracker.getTripData();
+            const hasStopover = tripData && tripData.nextStop;
+            this.nextStopStatItem.classList.toggle('hidden', !hasStopover);
         }
     }
 
