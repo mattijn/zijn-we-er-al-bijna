@@ -400,9 +400,9 @@ body {
 .stats-column {
     flex: 0.3;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
+    /* flex-direction: column;
+    justify-content: center; */
+    /* align-items: flex-end; */
 }
 
 .stats-card {
@@ -581,9 +581,16 @@ body {
 }
 
 /* Make progress section taller when address section is expanded */
-.address-section:not(.collapsed) ~ .progress-section {
-    min-height: 300px; /* Reduced from 350px to give more space to address section */
+/* .address-section:not(.collapsed) ~ .progress-section {
+    min-height: 272px; Reduced from 350px to give more space to address section
+} */
+
+
+/* Make progress section taller when address section is expanded */
+.address-section:not(.collapsed) .stat-value {
+    font-size: 1rem; /* Reduced from 350px to give more space to address section */
 }
+
 
 /* Status Stats */
 .status-stats {
