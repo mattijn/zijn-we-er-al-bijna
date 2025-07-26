@@ -2,39 +2,44 @@
  * Model Retry class for handling retries with exponential backoff
  */
 class ModelRetry {
-    constructor(maxAttempts = 3, baseDelay = 1000) {
+    constructor(maxAttempts = 3, retryDelay = 1000, failDelay = 30000) {
         this.maxAttempts = maxAttempts;
-        this.baseDelay = baseDelay;
+        this.retryDelay = retryDelay;
+        this.failDelay = failDelay;
         this.attempts = 0;
         this.isWaiting = false;
+        this.totalAttempts = 0;
     }
 
     async execute(operation) {
-        while (this.attempts < this.maxAttempts) {
+        while (true) { // Keep trying indefinitely
             try {
                 const result = await operation();
                 this.reset();
                 return result;
             } catch (error) {
                 this.attempts++;
+                this.totalAttempts++;
                 
                 if (this.attempts >= this.maxAttempts) {
                     this.isWaiting = true;
-                    console.warn(`All ${this.maxAttempts} attempts failed, waiting 30s before resetting`);
-                    await new Promise(resolve => setTimeout(resolve, 30000)); // 30s wait
-                    this.reset();
-                    throw new Error('Operation failed after multiple attempts. Please check your internet connection.');
+                    console.warn(`❌ Alle ${this.maxAttempts} pogingen gefaald (totaal: ${this.totalAttempts}), ${this.failDelay/1000}s wachten voor nieuwe pogingen...`);
+                    await new Promise(resolve => setTimeout(resolve, this.failDelay));
+                    this.attempts = 0; // Reset attempts but keep totalAttempts
+                    this.isWaiting = false;
+                    console.warn('🔄 Opnieuw proberen...');
+                    continue; // Start new batch of attempts
                 }
                 
-                const delay = this.baseDelay * Math.pow(2, this.attempts - 1);
-                console.warn(`Attempt ${this.attempts} failed, retrying in ${delay}ms`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                console.warn(`❌ Poging ${this.attempts} gefaald (totaal: ${this.totalAttempts}), opnieuw proberen over ${this.retryDelay/1000}s`);
+                await new Promise(resolve => setTimeout(resolve, this.retryDelay));
             }
         }
     }
 
     reset() {
         this.attempts = 0;
+        this.totalAttempts = 0;
         this.isWaiting = false;
     }
 
@@ -140,6 +145,15 @@ class GeolocationManager {
     }
 
     /**
+     * Reset all state
+     */
+    reset() {
+        this.stopTracking();
+        this.currentPosition = null;
+        this.modelRetry.reset();
+    }
+
+    /**
      * Stop location tracking
      */
     stopTracking() {
@@ -150,6 +164,7 @@ class GeolocationManager {
         this.isTracking = false;
         this.onLocationUpdate = null;
         this.onError = null;
+        this.modelRetry.reset(); // Reset retry state
     }
 
     /**
@@ -160,67 +175,120 @@ class GeolocationManager {
             throw new Error('Address is required');
         }
 
-        const encodedAddress = encodeURIComponent(address.trim());
-        
-        // Try multiple geocoding services for better reliability
-        const services = [
-            // Service 1: OpenStreetMap with a more reliable CORS proxy
-            {
-                url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`)}`,
-                parser: (data) => {
-                    if (data.length === 0) throw new Error('Address not found');
-                    const result = data[0];
-                    return {
-                        lat: parseFloat(result.lat),
-                        lng: parseFloat(result.lon),
-                        displayName: result.display_name,
-                        address: result.address
-                    };
-                }
-            },
-            // Service 2: Alternative geocoding service
-            {
-                url: `https://geocode.maps.co/search?q=${encodedAddress}`,
-                parser: (data) => {
-                    if (data.length === 0) throw new Error('Address not found');
-                    const result = data[0];
-                    return {
-                        lat: parseFloat(result.lat),
-                        lng: parseFloat(result.lon),
-                        displayName: result.display_name || `${address}, Netherlands`,
-                        address: result.address || address
-                    };
-                }
-            }
-        ];
-
-        // Try each service until one works
-        for (const service of services) {
-            try {
-                const response = await fetch(service.url, {
-                    headers: {
-                        'Accept': 'application/json'
+        return this.modelRetry.execute(async () => {
+            const encodedAddress = encodeURIComponent(address.trim());
+            
+            // Try multiple geocoding services for better reliability
+            const services = [
+                // Service 1: OpenStreetMap Nominatim API (most reliable for international addresses)
+                {
+                    url: `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
+                    parser: async (data) => {
+                        if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
+                        const result = data[0];
+                        return {
+                            lat: parseFloat(result.lat),
+                            lng: parseFloat(result.lon),
+                            displayName: result.display_name,
+                            address: result.address,
+                            countryCode: result.address?.country_code?.toUpperCase() || null
+                        };
                     }
-                });
+                },
+                // Service 2: Alternative geocoding service (maps.co)
+                {
+                    url: `https://geocode.maps.co/search?q=${encodedAddress}&api_key=6884e5765d15b402837211woq4549eb`,
+                    parser: async (data) => {
+                        if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
+                        const result = data[0];
+                        return {
+                            lat: parseFloat(result.lat),
+                            lng: parseFloat(result.lon),
+                            displayName: result.display_name || address,
+                            address: result.address || address,
+                            countryCode: null // This service doesn't provide country codes
+                        };
+                    }
+                }
+            ];
 
-                if (!response.ok) {
+            // Try each service with timeout
+            const timeout = 10000; // 10 seconds timeout
+            let lastError = null;
+            let serviceErrors = [];
+
+            for (const service of services) {
+                try {
+                    console.log('🔍 Trying geocoding service:', {
+                        service: service.url,
+                        address: address
+                    });
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                    const response = await fetch(service.url, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'User-Agent': 'ZijnWeErAlBijna/1.0' // Proper user agent for Nominatim
+                        },
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data) {
+                        throw new Error('Invalid response data');
+                    }
+
+                    const result = await service.parser(data);
+                    
+                    // Validate result
+                    if (!result || typeof result.lat !== 'number' || typeof result.lng !== 'number') {
+                        throw new Error('Invalid geocoding result format');
+                    }
+                    
+                    console.log('✅ Geocoding successful:', {
+                        address: address,
+                        result: result,
+                        service: service.url
+                    });
+                    return result;
+
+                } catch (error) {
+                    console.warn('❌ Geocoding service failed:', {
+                        service: service.url,
+                        error: error.message,
+                        address: address
+                    });
+                    
+                    serviceErrors.push({
+                        service: service.url,
+                        error: error.message
+                    });
+                    
+                    if (error.name === 'AbortError') {
+                        lastError = new Error(`Geocoding request timed out voor "${address}". Controleer je internetverbinding.`);
+                    } else {
+                        lastError = error;
+                    }
                     continue; // Try next service
                 }
-
-                const data = await response.json();
-                const result = service.parser(data);
-                
-                console.log('Geocoding successful:', result);
-                return result;
-                
-            } catch (error) {
-                console.log(`Geocoding service failed:`, error.message);
-                continue; // Try next service
             }
-        }
 
-        // If all services fail, throw an error
-        throw new Error(`Could not find address: ${address}. Please try a different address or check your internet connection.`);
+            // If all services fail, throw a detailed error
+            console.error('❌ All geocoding services failed:', {
+                address: address,
+                errors: serviceErrors
+            });
+            
+            throw new Error(`Kon het adres "${address}" niet vinden. Controleer het adres of je internetverbinding.`);
+        });
     }
 
     /**

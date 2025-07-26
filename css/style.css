@@ -100,10 +100,10 @@ body {
     border-radius: 20px;
     padding: 25px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    transition: all 0.5s ease;
+    transition: all 0.3s ease;
     transform: translateY(0);
     opacity: 1;
-    max-height: 600px; /* Increased from 500px to give more space for buttons */
+    max-height: 600px;
     overflow: hidden;
     margin-left: 10px;
     margin-right: 10px;
@@ -225,15 +225,15 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    transition: all 0.5s ease;
+    transition: all 0.3s ease;
     overflow: hidden; /* Ensure content stays within bounds */
-    margin-left: 10px;
-    margin-right: 10px;
+    margin: 20px 10px;
 }
 
 .progress-section.compact {
-    flex: 0.6;
+    /* flex: 0.6; */
     min-height: 250px; /* Reduced from 300px for better mobile compatibility */
+    margin: 0 10px;
 }
 
 .progress-layout {
@@ -274,16 +274,12 @@ body {
 }
 
 .next-stop-progress {
-    opacity: 0;
-    transform: scale(0.8);
-    transition: all 0.5s ease;
+    display: none; /* Hidden by default */
+    position: relative;
 }
 
 .next-stop-progress.visible {
-    opacity: 1 !important;
-    transform: scale(1) !important;
-    display: flex !important;
-    visibility: visible !important;
+    display: block;
 }
 
 .progress-bar {

@@ -8,6 +8,7 @@ class TripApp {
         this.isInitialized = false;
         this.loadingOverlay = null;
         this.startButton = null;
+        this.stopButton = null;
         this.resetButton = null;
         this.destinationInput = null;
         this.nextStopInput = null;
@@ -45,13 +46,17 @@ class TripApp {
     setupElements() {
         this.loadingOverlay = document.getElementById('loading-overlay');
         this.startButton = document.getElementById('start-trip');
+        this.stopButton = document.getElementById('stop-trip');
         this.resetButton = document.getElementById('reset-trip');
         this.backToSetupButton = document.getElementById('back-to-setup');
         this.destinationInput = document.getElementById('final-destination');
         this.nextStopInput = document.getElementById('next-stop');
         this.updateNextStopButton = document.getElementById('update-next-stop');
+        
+        // Get the next stop stat item
+        this.nextStopStatItem = document.querySelector('.status-stats .stat-item:has(#next-stop-time)');
 
-        if (!this.startButton || !this.resetButton || !this.backToSetupButton || !this.destinationInput) {
+        if (!this.startButton || !this.stopButton || !this.resetButton || !this.backToSetupButton || !this.destinationInput) {
             throw new Error('Required DOM elements not found');
         }
     }
@@ -62,6 +67,9 @@ class TripApp {
     setupEventListeners() {
         // Start trip button
         this.startButton.addEventListener('click', () => this.handleStartTrip());
+        
+        // Stop trip button
+        this.stopButton.addEventListener('click', () => this.handleStopTrip());
         
         // Reset trip button
         this.resetButton.addEventListener('click', () => this.handleResetTrip());
@@ -186,22 +194,54 @@ class TripApp {
             return;
         }
 
+        // Direct UI updaten
+        this.updateUIForActiveTrip();
+        this.showInfo('🔄 Locatie ophalen...');
+
         try {
-            this.showLoading('Locatie ophalen...');
-            
-            await window.progressTracker.startTrip(destination, nextStop);
+            const tripData = await window.progressTracker.startTrip(destination, nextStop);
             
             // Request wake lock to prevent device sleep
             await this.requestWakeLock();
             
-            this.hideLoading();
-            this.updateUIForActiveTrip();
-            this.updateNextStopVisibility(); // Add this line
-            this.showSuccess('Reis gestart! Je locatie wordt nu bijgehouden.');
+            // Update next stop visibility
+            this.updateNextStopVisibility();
+            
+            this.showSuccess('🚀 Reis gestart!');
             
         } catch (error) {
-            this.hideLoading();
-            this.showError(error.message);
+            console.error('Error starting trip:', error);
+            
+            // UI terugzetten naar originele staat
+            this.updateUIForStoppedTrip();
+            
+            if (error.message.includes('Adres niet gevonden')) {
+                this.showError(error.message);
+            } else if (error.message.includes('timed out')) {
+                this.showError('Het ophalen van de locatie duurde te lang. Controleer je internetverbinding en probeer opnieuw.');
+            } else if (error.message.includes('Geolocation is not supported')) {
+                this.showError('Je browser ondersteunt geen locatie tracking. Gebruik een moderne browser.');
+            } else if (error.message.includes('PERMISSION_DENIED')) {
+                this.showError('Locatie toegang geweigerd. Controleer je browser instellingen.');
+            } else if (error.message.includes('POSITION_UNAVAILABLE')) {
+                this.showError('Locatie informatie is niet beschikbaar. Controleer of GPS is ingeschakeld.');
+            } else if (error.message.includes('TIMEOUT')) {
+                this.showError('Het ophalen van je locatie duurde te lang. Probeer opnieuw.');
+            } else {
+                this.showError('Er is een fout opgetreden bij het starten van de reis. Probeer opnieuw.');
+            }
+        }
+    }
+
+    /**
+     * Handle stop trip button click
+     */
+    handleStopTrip() {
+        if (window.progressTracker.isTripActive()) {
+            window.progressTracker.stopTrip();
+            this.releaseWakeLock();
+            this.updateUIForStoppedTrip(); // Preserve input values when stopping
+            this.showSuccess('Reis gestopt');
         }
     }
 
@@ -210,12 +250,13 @@ class TripApp {
      */
     handleResetTrip() {
         if (window.progressTracker.isTripActive()) {
-            if (confirm('Weet je zeker dat je de reis wilt stoppen?')) {
-                window.progressTracker.stopTrip();
+            if (confirm('Weet je zeker dat je de reis wilt resetten? Dit verwijdert alle voortgang.')) {
+                window.progressTracker.resetTrip();
                 this.releaseWakeLock();
-                this.updateUIForStoppedTrip(); // Preserve input values when stopping
-            } else {
-                return;
+                this.updateUIForInactiveTrip(); // Clear input fields for reset
+                window.tripStorage.clearTripData();
+                window.tripStorage.clearTripHistory();
+                this.showSuccess('Reis gereset');
             }
         } else {
             // If no active trip, this is a true reset - clear everything
@@ -223,7 +264,7 @@ class TripApp {
             this.releaseWakeLock();
             this.updateUIForInactiveTrip(); // Clear input fields for reset
             window.tripStorage.clearTripData();
-            window.tripStorage.clearTripHistory(); // Also clear recent measurements/history
+            window.tripStorage.clearTripHistory();
             this.showSuccess('Reis gereset');
         }
     }
@@ -351,37 +392,31 @@ class TripApp {
      * Update UI for active trip
      */
     updateUIForActiveTrip() {
-        this.startButton.disabled = true;
-        this.startButton.textContent = '🚗 Actief';
-        this.destinationInput.disabled = true;
-        // Keep next stop input enabled for updates
-        this.nextStopInput.disabled = false;
-        this.resetButton.textContent = '⏹️ Stop Reis';
-        this.backToSetupButton.classList.remove('hidden');
-        
-        // Enable update button if there's a next stop
-        if (this.updateNextStopButton) {
-            const hasNextStop = this.nextStopInput.value.trim();
-            this.updateNextStopButton.disabled = !hasNextStop;
-        }
-        
-        // Collapse address section
+        // Hide address section
         const addressSection = document.getElementById('address-section');
         if (addressSection) {
             addressSection.classList.add('collapsed');
         }
         
+        // Show trip controls
+        this.stopButton.classList.remove('hidden');
+        this.resetButton.classList.remove('hidden');
+        this.backToSetupButton.classList.remove('hidden');
+        
         // Show status section when address section is collapsed
-        const statusSection = document.getElementById('status-section');
+        const statusSection = document.querySelector('.status-section');
         if (statusSection) {
             statusSection.classList.remove('hidden');
         }
         
-        // Ensure progress section is full size
+        // Make progress section compact
         const progressSection = document.getElementById('progress-section');
         if (progressSection) {
-            progressSection.classList.remove('compact');
+            progressSection.classList.add('compact');
         }
+        
+        // Update next stop visibility
+        this.updateNextStopVisibility();
     }
 
     /**

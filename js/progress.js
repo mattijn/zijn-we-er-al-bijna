@@ -31,14 +31,23 @@ class ProgressTracker {
             
             // Get current location as origin
             const origin = await window.geolocationManager.getCurrentPosition();
+            if (!origin) {
+                throw new Error('Kon je huidige locatie niet bepalen');
+            }
             
             // Geocode destination
             const destination = await window.geolocationManager.geocodeAddress(destinationAddress);
+            if (!destination) {
+                throw new Error(`Kon het adres "${destinationAddress}" niet vinden`);
+            }
             
             // Geocode next stop if provided
             let nextStop = null;
             if (nextStopAddress && nextStopAddress.trim() !== '') {
                 nextStop = await window.geolocationManager.geocodeAddress(nextStopAddress);
+                if (!nextStop) {
+                    throw new Error(`Kon de tussenstop "${nextStopAddress}" niet vinden`);
+                }
             }
 
             // Debug: Log the geocoding results
@@ -49,12 +58,25 @@ class ProgressTracker {
 
             // Get route information using OSRM for better calculations
             const routeInfo = await window.geolocationManager.getRouteInfo(origin, destination);
+            if (!routeInfo || typeof routeInfo.distance !== 'number') {
+                throw new Error('Kon geen route berekenen naar je bestemming');
+            }
             
             // Debug: Log the route information
             console.log('🔍 DEBUG - Route info:');
             console.log('OSRM distance:', routeInfo.distance, 'km');
             console.log('OSRM duration:', routeInfo.duration, 'min');
             console.log('OSRM average speed:', routeInfo.averageSpeed, 'km/h');
+
+            // Hide or show next stop progress bar based on whether we have a next stop
+            const nextStopProgress = document.getElementById('next-stop-progress');
+            if (nextStopProgress) {
+                if (nextStop) {
+                    nextStopProgress.style.display = 'block';
+                } else {
+                    nextStopProgress.style.display = 'none';
+                }
+            }
 
             this.tripData = {
                 origin: origin,
@@ -78,12 +100,18 @@ class ProgressTracker {
 
             // Get current position and do initial progress update
             const currentPosition = await window.geolocationManager.getCurrentPosition();
+            if (!currentPosition) {
+                throw new Error('Kon je huidige locatie niet bepalen voor de eerste update');
+            }
+            
             await this.updateProgress(currentPosition);
             
             return this.tripData;
 
         } catch (error) {
             console.error('Error starting trip:', error);
+            // Reset trip data to prevent undefined errors
+            this.resetTrip();
             throw error;
         }
     }
@@ -98,9 +126,13 @@ class ProgressTracker {
 
         try {
             const now = Date.now();
-            const timeSinceLastUpdate = (now - this.tripData.lastUpdateTime) / 1000; // seconds
-
+            
             // Get updated route info from current position
+            console.log('🔄 Updating route info:', {
+                from: currentPosition,
+                to: this.tripData.destination
+            });
+
             const currentRouteInfo = await window.geolocationManager.getRouteInfo(
                 currentPosition,
                 this.tripData.destination
@@ -108,6 +140,7 @@ class ProgressTracker {
 
             // Store the updated route info for time calculations
             this.tripData.routeInfo = currentRouteInfo;
+            this.tripData.lastUpdateTime = now;
 
             // Calculate progress based on OSRM route distances
             const distanceFromOrigin = this.tripData.totalDistance - currentRouteInfo.distance;
@@ -115,16 +148,22 @@ class ProgressTracker {
                 (distanceFromOrigin / this.tripData.totalDistance) * 100
             ));
 
+            console.log('📊 Progress update:', {
+                totalDistance: this.tripData.totalDistance.toFixed(1) + ' km',
+                remainingDistance: currentRouteInfo.distance.toFixed(1) + ' km',
+                distanceFromOrigin: distanceFromOrigin.toFixed(1) + ' km',
+                progressPercentage: progressPercentage.toFixed(1) + '%'
+            });
+
             // Update display with new progress
             await this.updateDisplay(progressPercentage, currentRouteInfo.distance);
 
             // Check if we've reached the destination (within 50 meters)
             if (currentRouteInfo.distance <= 0.05) {
-                this.completeTrip();
+                console.log('🏁 Destination reached!');
+                await this.completeTrip();
+                return;
             }
-
-            // Store last update time
-            this.tripData.lastUpdateTime = now;
 
             // Call progress callback if set
             if (this.onProgressUpdate) {
@@ -136,7 +175,7 @@ class ProgressTracker {
                 });
             }
         } catch (error) {
-            console.error('Error updating progress:', error);
+            console.error('❌ Error updating progress:', error);
             this.handleLocationError(error);
         }
     }
@@ -529,7 +568,7 @@ class ProgressTracker {
     /**
      * Complete the trip
      */
-    completeTrip() {
+    async completeTrip() {
         this.tripData.isActive = false;
         window.geolocationManager.stopTracking();
 
@@ -546,8 +585,7 @@ class ProgressTracker {
      */
     stopTrip() {
         this.tripData.isActive = false;
-        window.geolocationManager.stopTracking();
-        this.updateDisplay();
+        window.geolocationManager.reset(); // Reset all geolocation state
     }
 
     /**
@@ -620,15 +658,13 @@ class ProgressTracker {
     }
 
     /**
-     * Reset trip data
+     * Reset all trip data
      */
     resetTrip() {
         this.tripData = {
             origin: null,
             destination: null,
             nextStop: null,
-            nextStopOrigin: null,
-            nextStopRouteInfo: null,
             startTime: null,
             totalDistance: 0,
             distanceTraveled: 0,
@@ -637,16 +673,7 @@ class ProgressTracker {
             speedHistory: [],
             lastUpdateTime: null
         };
-
-        window.geolocationManager.stopTracking();
-        this.updateDisplay();
-        this.resetStatus();
-        
-        // Hide next stop time item
-        const nextStopTimeItem = document.getElementById('next-stop-time-item');
-        if (nextStopTimeItem) {
-            nextStopTimeItem.style.display = 'none';
-        }
+        window.geolocationManager.reset(); // Reset all geolocation state
     }
 
     /**

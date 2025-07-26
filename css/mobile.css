@@ -95,7 +95,7 @@
     }
     
     .stat-value {
-        font-size: 1.4rem; /* Slightly smaller but still readable */
+        font-size: 1.5rem; /* Slightly smaller but still readable */
     }
     
     /* Status Stats */
@@ -167,7 +167,7 @@
     }
     
     .stat-value {
-        font-size: 1rem;
+        font-size: 1.5rem;
     }
 }
 
@@ -235,7 +235,7 @@
     }
     
     .stat-value {
-        font-size: 0.9rem;
+        font-size: 1.5rem;
     }
 }
 
@@ -261,10 +261,6 @@
     
     .main-content {
         gap: 20px;
-    }
-    
-    .progress-bar {
-        height: 200px;
     }
 }
 
@@ -311,7 +307,7 @@
     }
     
     .stat-value {
-        font-size: 1.3rem;
+        font-size: 1.5rem;
     }
     
     /* Status Stats */
@@ -445,7 +441,7 @@
     }
     
     .stat-value {
-        font-size: 0.8rem;
+        font-size: 1.5rem;
     }
 }
 
@@ -524,7 +520,7 @@
     }
     
     .stat-value {
-        font-size: 1.2rem;
+        font-size: 1.5rem;
     }
     
     /* Status Stats */
@@ -598,7 +594,7 @@
     }
     
     .stat-value {
-        font-size: 0.9rem;
+        font-size: 1.5rem;
     }
 }
 
@@ -692,7 +688,7 @@
     }
     
     .stat-value {
-        font-size: 1rem; /* Keep same as larger mobile screens */
+        font-size: 1.5rem; /* Keep same as larger mobile screens */
     }
 }
 
@@ -793,10 +789,6 @@
     
     .main-content {
         gap: 12px;
-    }
-    
-    .progress-bar {
-        min-height: 180px; /* Very compact for small heights */
     }
     
     .progress-bars-container {
@@ -1101,7 +1093,7 @@
     }
 
     .stat-value {
-        font-size: 1.1rem;
+        font-size: 1.5rem;
     }
 
     /* Status section */
@@ -1202,7 +1194,7 @@
     }
 
     .stat-value {
-        font-size: 1rem;
+        font-size: 1.5rem;
     }
 
     /* Status stats */
