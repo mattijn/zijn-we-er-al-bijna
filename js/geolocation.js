@@ -75,9 +75,16 @@ class GeolocationManager {
 
             const options = {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 60000 // Cache for 1 minute
+                timeout: 20000, // Increased timeout for mobile
+                maximumAge: 30000 // Reduced cache time
             };
+
+            // Try to get cached position first
+            const cachedPosition = this.getCurrentPositionSync();
+            if (cachedPosition && (Date.now() - cachedPosition.timestamp) < options.maximumAge) {
+                resolve(cachedPosition);
+                return;
+            }
 
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -91,6 +98,11 @@ class GeolocationManager {
                 },
                 (error) => {
                     const errorMessage = this.getErrorMessage(error);
+                    console.error('Geolocation error:', {
+                        code: error.code,
+                        message: error.message,
+                        userMessage: errorMessage
+                    });
                     reject(new Error(errorMessage));
                 },
                 options
@@ -117,11 +129,12 @@ class GeolocationManager {
 
         const options = {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 30000 // Cache for 30 seconds
+            timeout: 20000, // Increased timeout for mobile
+            maximumAge: 15000 // Reduced cache time for more frequent updates
         };
 
-        this.watchId = navigator.geolocation.watchPosition(
+        // Get initial position
+        navigator.geolocation.getCurrentPosition(
             (position) => {
                 this.currentPosition = {
                     lat: position.coords.latitude,
@@ -133,9 +146,42 @@ class GeolocationManager {
                 if (this.onLocationUpdate) {
                     this.onLocationUpdate(this.currentPosition);
                 }
+
+                // Start watching after initial position
+                this.watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        this.currentPosition = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: position.timestamp
+                        };
+                        
+                        if (this.onLocationUpdate) {
+                            this.onLocationUpdate(this.currentPosition);
+                        }
+                    },
+                    (error) => {
+                        const errorMessage = this.getErrorMessage(error);
+                        console.error('Geolocation watch error:', {
+                            code: error.code,
+                            message: error.message,
+                            userMessage: errorMessage
+                        });
+                        if (this.onError) {
+                            this.onError(new Error(errorMessage));
+                        }
+                    },
+                    options
+                );
             },
             (error) => {
                 const errorMessage = this.getErrorMessage(error);
+                console.error('Initial geolocation error:', {
+                    code: error.code,
+                    message: error.message,
+                    userMessage: errorMessage
+                });
                 if (this.onError) {
                     this.onError(new Error(errorMessage));
                 }
@@ -175,6 +221,20 @@ class GeolocationManager {
             throw new Error('Address is required');
         }
 
+        // Get current position for better local search (optional)
+        let searchArea = null;
+        try {
+            const position = await this.getCurrentPosition();
+            if (position) {
+                searchArea = {
+                    lat: position.lat,
+                    lon: position.lng
+                };
+            }
+        } catch (error) {
+            console.warn('Could not get current position for local search:', error);
+        }
+
         return this.modelRetry.execute(async () => {
             const encodedAddress = encodeURIComponent(address.trim());
             
@@ -182,7 +242,9 @@ class GeolocationManager {
             const services = [
                 // Service 1: OpenStreetMap Nominatim API (most reliable for international addresses)
                 {
-                    url: `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
+                    url: `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1${
+                        searchArea ? `&lat=${searchArea.lat}&lon=${searchArea.lon}` : ''
+                    }`,
                     parser: async (data) => {
                         if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
                         const result = data[0];
@@ -197,7 +259,9 @@ class GeolocationManager {
                 },
                 // Service 2: Alternative geocoding service (maps.co)
                 {
-                    url: `https://geocode.maps.co/search?q=${encodedAddress}&api_key=6884e5765d15b402837211woq4549eb`,
+                    url: `https://geocode.maps.co/search?q=${encodedAddress}&api_key=6884e5765d15b402837211woq4549eb${
+                        searchArea ? `&lat=${searchArea.lat}&lon=${searchArea.lon}` : ''
+                    }`,
                     parser: async (data) => {
                         if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
                         const result = data[0];
@@ -206,7 +270,7 @@ class GeolocationManager {
                             lng: parseFloat(result.lon),
                             displayName: result.display_name || address,
                             address: result.address || address,
-                            countryCode: null // This service doesn't provide country codes
+                            countryCode: null
                         };
                     }
                 }
@@ -221,7 +285,8 @@ class GeolocationManager {
                 try {
                     console.log('🔍 Trying geocoding service:', {
                         service: service.url,
-                        address: address
+                        address: address,
+                        searchArea: searchArea
                     });
 
                     const controller = new AbortController();
@@ -230,7 +295,7 @@ class GeolocationManager {
                     const response = await fetch(service.url, {
                         headers: {
                             'Accept': 'application/json',
-                            'User-Agent': 'ZijnWeErAlBijna/1.0' // Proper user agent for Nominatim
+                            'User-Agent': 'ZijnWeErAlBijna/1.0 (https://mattijn.github.io/zijn-we-er-al-bijna/)'
                         },
                         signal: controller.signal
                     });
@@ -248,15 +313,18 @@ class GeolocationManager {
 
                     const result = await service.parser(data);
                     
-                    // Validate result
-                    if (!result || typeof result.lat !== 'number' || typeof result.lng !== 'number') {
-                        throw new Error('Invalid geocoding result format');
+                    // Valideer alleen de basis coördinaten
+                    if (!result.lat || !result.lng || 
+                        result.lat < -90 || result.lat > 90 || 
+                        result.lng < -180 || result.lng > 180) {
+                        throw new Error('Ongeldige coördinaten ontvangen');
                     }
                     
                     console.log('✅ Geocoding successful:', {
                         address: address,
                         result: result,
-                        service: service.url
+                        service: service.url,
+                        searchArea: searchArea
                     });
                     return result;
 
@@ -264,7 +332,8 @@ class GeolocationManager {
                     console.warn('❌ Geocoding service failed:', {
                         service: service.url,
                         error: error.message,
-                        address: address
+                        address: address,
+                        searchArea: searchArea
                     });
                     
                     serviceErrors.push({
@@ -284,7 +353,8 @@ class GeolocationManager {
             // If all services fail, throw a detailed error
             console.error('❌ All geocoding services failed:', {
                 address: address,
-                errors: serviceErrors
+                errors: serviceErrors,
+                searchArea: searchArea
             });
             
             throw new Error(`Kon het adres "${address}" niet vinden. Controleer het adres of je internetverbinding.`);
@@ -426,13 +496,13 @@ class GeolocationManager {
     getErrorMessage(error) {
         switch (error.code) {
             case error.PERMISSION_DENIED:
-                return 'Locatie toegang geweigerd. Controleer je browser instellingen.';
+                return 'Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.';
             case error.POSITION_UNAVAILABLE:
-                return 'Locatie informatie is niet beschikbaar.';
+                return 'Locatie informatie is niet beschikbaar. Controleer of GPS is ingeschakeld.';
             case error.TIMEOUT:
-                return 'Locatie ophalen duurde te lang. Probeer opnieuw.';
+                return 'Locatie ophalen duurde te lang. Controleer je internetverbinding en GPS signaal.';
             default:
-                return 'Er is een onbekende fout opgetreden bij het ophalen van je locatie.';
+                return `Er is een fout opgetreden bij het ophalen van je locatie: ${error.message}`;
         }
     }
 
