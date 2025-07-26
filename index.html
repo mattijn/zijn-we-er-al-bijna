@@ -3,193 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 Zijn we er al bijna?</title>
+    <meta name="description" content="Kindvriendelijke reisvoortgang-app voor kinderen op de achterbank">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#FF6B6B">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>Zijn we er al bijna?</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/mobile.css">
+    <meta name="apple-mobile-web-app-title" content="Zijn we er al bijna?">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
 </head>
 <body>
-    <div class="container">
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Main App -->
+    <div class="app">
+        <!-- Header Section -->
         <header class="header">
             <h1 class="title">🚗 Zijn we er al bijna?</h1>
-            <button id="back-to-setup" class="header-btn hidden" title="Instellingen">⚙️</button>
+            <button id="back-to-setup" class="header-btn hidden">⚙️</button>
         </header>
-
-        <main class="main-content">
-            <!-- Address Input Section -->
-            <section class="address-section" id="address-section">
-                <div class="input-group">
-                    <label for="final-destination" class="input-label">🏁 Eindbestemming</label>
-                    <input 
-                        type="text" 
-                        id="final-destination" 
-                        class="address-input"
-                        placeholder="Voer je eindbestemming in..."
-                        autocomplete="off"
-                        dir="auto"
-                    >
-                </div>
-
-                <div class="input-group">
-                    <label for="next-stop" class="input-label">⏸️ Volgende stop (optioneel)</label>
-                    <div class="input-with-button">
-                        <input 
-                            type="text" 
-                            id="next-stop" 
-                            class="address-input"
-                            placeholder="Voer je volgende stop in..."
-                            autocomplete="off"
-                            dir="auto"
-                        >
-                        <button id="update-next-stop" class="btn btn-secondary update-btn" disabled>
-                            🔄 Update
-                        </button>
-                    </div>
-                </div>
-
-                <div class="button-group">
-                    <button id="start-trip" class="btn btn-primary">🚀 Start Reis</button>
-                    <button id="stop-trip" class="btn btn-secondary hidden">⏹️ Stop</button>
-                    <button id="reset-trip" class="btn btn-secondary">🔄 Reset</button>
-                </div>
-            </section>
-
-
-
-            <!-- Progress Section -->
-            <section class="progress-section" id="progress-section">
-                <div class="progress-layout">
-                    <!-- Progress Bars Column -->
-                    <div class="progress-column">
-                        <div class="progress-bars-container">
-                            <!-- Final Destination Progress Bar -->
-                            <div class="progress-bar-wrapper">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="progress-fill-destination"></div>
-                                    <div class="progress-indicator" id="progress-indicator-destination">
-                                        <div class="car-icon">🚗</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Vertical Labels for Destination -->
-                                <div class="progress-labels-vertical">
-                                    <div class="label destination-label">
-                                        <span class="label-icon">🏁</span>
-                                        <span class="label-text">Bestemming</span>
-                                    </div>
-                                    <div class="label start-label">
-                                        <span class="label-icon">📍</span>
-                                        <span class="label-text">Start</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Next Stop Progress Bar (hidden by default) -->
-                            <div class="progress-bar-wrapper next-stop-progress" id="next-stop-progress">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="progress-fill-nextstop"></div>
-                                    <div class="progress-indicator" id="progress-indicator-nextstop">
-                                        <div class="car-icon">🚗</div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Vertical Labels for Next Stop (right side) -->
-                                <div class="progress-labels-vertical progress-labels-right">
-                                    <div class="label destination-label">
-                                        <span class="label-icon">⏸️</span>
-                                        <span class="label-text">Volgende Stop</span>
-                                    </div>
-                                    <div class="label start-label">
-                                        <span class="label-icon">📍</span>
-                                        <span class="label-text">Start</span>
-                                    </div>
+        
+        <!-- Address Input Section -->
+        <section class="address-section" id="address-section">
+            <div class="input-group">
+                <label for="destination-input" class="input-label">🏁 Eindbestemming</label>
+                <input 
+                    type="text" 
+                    id="destination-input" 
+                    class="address-input" 
+                    placeholder="Waar gaan we naartoe?"
+                    autocomplete="off"
+                >
+            </div>
+            
+            <div class="input-group">
+                <label for="next-stop-input" class="input-label">⏸️ Volgende stop (optioneel)</label>
+                <input 
+                    type="text" 
+                    id="next-stop-input" 
+                    class="address-input" 
+                    placeholder="Toiletpauze of tankstop?"
+                    autocomplete="off"
+                >
+            </div>
+            
+            <div class="button-group">
+                <button id="start-trip-btn" class="btn btn-primary">🚗 Start Reis</button>
+                <button id="update-stop-btn" class="btn btn-secondary hidden">🔄 Update Stop</button>
+            </div>
+        </section>
+        
+        <!-- Progress Section -->
+        <section class="progress-section" id="progress-section">
+            <div class="progress-layout">
+                <div class="progress-column">
+                    <!-- Main Destination Progress -->
+                    <div class="progress-container">
+                        <div class="progress-labels">
+                            <span class="progress-label">📍 Start</span>
+                            <span class="progress-label">🏁 Bestemming</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-track">
+                                <div id="progress-fill-destination" class="progress-fill">
+                                    <span class="progress-car">🚗</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Statistics Column -->
-                    <div class="stats-column">
-                        <div class="stats-card">
-                            <div class="stat-item">
-                                <div class="stat-header">
-                                    <span class="stat-icon">⏰</span>
-                                    <div class="stat-title">Tijd resterend</div>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="remaining-time">--:--</div>
-                                </div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-header">
-                                    <span class="stat-icon">🚗</span>
-                                    <div class="stat-title">Gereisd</div>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="traveled-distance">0 km</div>
-                                </div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-header">
-                                    <span class="stat-icon">📊</span>
-                                    <div class="stat-title">Voortgang</div>
-                                </div>
-                                <div class="stat-content">
-                                    <div class="stat-value" id="progress">0%</div>
+                    
+                    <!-- Next Stop Progress -->
+                    <div class="progress-container" id="next-stop-progress" style="display: none;">
+                        <div class="progress-labels">
+                            <span class="progress-label">📍 Start</span>
+                            <span class="progress-label">⏸️ Volgende Stop</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-track">
+                                <div id="progress-fill-nextstop" class="progress-fill">
+                                    <span class="progress-car">🚗</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </section>
-
-            <!-- Status Section -->
-            <section class="status-section">
-                <!-- Status Stats -->
-                <div class="status-stats">
+                
+                <div class="first-stats-column">
+                    <!-- Primary Statistics -->
                     <div class="stat-item">
-                        <div class="stat-header">
-                            <span class="stat-icon">📏</span>
-                            <div class="stat-title">Afstand resterend</div>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="remaining-distance">0 km</div>
-                        </div>
+                        <div class="stat-header">⏰ Tijd resterend</div>
+                        <div id="remaining-time" class="stat-value">--:--</div>
                     </div>
+                    
                     <div class="stat-item">
-                        <div class="stat-header">
-                            <span class="stat-icon">⏸️</span>
-                            <div class="stat-title">Volgende stop over</div>
-                        </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="next-stop-time">--:--</div>
-                        </div>
+                        <div class="stat-header">🚗 Gereisd</div>
+                        <div id="traveled-distance" class="stat-value">0 km</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-header">📊 Voortgang</div>
+                        <div id="progress" class="stat-value">0%</div>
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
+        </section>
+        
+        <!-- Status Section -->
+        <section class="second-stats-row">
+            <div class="stat-item horizontal">
+                <div class="stat-header">📏 Afstand resterend</div>
+                <div id="remaining-distance" class="stat-value">0 km</div>
+            </div>
+            
+            <div class="stat-item horizontal" id="next-stop-stat" style="display: none;">
+                <div class="stat-header">⏸️ Volgende stop over</div>
+                <div id="next-stop-time" class="stat-value">--:--</div>
+            </div>
+        </section>
+        
+        <!-- Control Buttons -->
+        <section class="control-section">
+            <button id="stop-trip-btn" class="btn btn-danger hidden">⏹️ Stop Reis</button>
+            <button id="reset-trip-btn" class="btn btn-secondary hidden">🔄 Reset</button>
+        </section>
     </div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Locatie ophalen...</div>
-    </div>
-
-    <!-- Toast Container -->
-    <div class="toast-container" id="toast-container">
-        <!-- Toasts will be added here dynamically -->
-    </div>
-
+    
     <!-- Scripts -->
+    <script src="js/storage.js"></script>
     <script src="js/geolocation.js"></script>
     <script src="js/progress.js"></script>
-    <script src="js/storage.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html> 

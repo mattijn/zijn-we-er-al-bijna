@@ -1,56 +1,6 @@
 /**
- * Model Retry class for handling retries with exponential backoff
- */
-class ModelRetry {
-    constructor(maxAttempts = 3, retryDelay = 1000, failDelay = 30000) {
-        this.maxAttempts = maxAttempts;
-        this.retryDelay = retryDelay;
-        this.failDelay = failDelay;
-        this.attempts = 0;
-        this.isWaiting = false;
-        this.totalAttempts = 0;
-    }
-
-    async execute(operation) {
-        while (true) { // Keep trying indefinitely
-            try {
-                const result = await operation();
-                this.reset();
-                return result;
-            } catch (error) {
-                this.attempts++;
-                this.totalAttempts++;
-                
-                if (this.attempts >= this.maxAttempts) {
-                    this.isWaiting = true;
-                    console.warn(`❌ Alle ${this.maxAttempts} pogingen gefaald (totaal: ${this.totalAttempts}), ${this.failDelay/1000}s wachten voor nieuwe pogingen...`);
-                    await new Promise(resolve => setTimeout(resolve, this.failDelay));
-                    this.attempts = 0; // Reset attempts but keep totalAttempts
-                    this.isWaiting = false;
-                    console.warn('🔄 Opnieuw proberen...');
-                    continue; // Start new batch of attempts
-                }
-                
-                console.warn(`❌ Poging ${this.attempts} gefaald (totaal: ${this.totalAttempts}), opnieuw proberen over ${this.retryDelay/1000}s`);
-                await new Promise(resolve => setTimeout(resolve, this.retryDelay));
-            }
-        }
-    }
-
-    reset() {
-        this.attempts = 0;
-        this.totalAttempts = 0;
-        this.isWaiting = false;
-    }
-
-    isRetrying() {
-        return this.attempts > 0;
-    }
-}
-
-/**
- * Geolocation Module
- * Handles current location tracking and address geocoding using OpenStreetMap Nominatim API
+ * GeolocationManager - Handles GPS tracking, geocoding, and route calculations
+ * Uses OSRM for routing, Nominatim + Maps.co for geocoding with retry mechanism
  */
 
 class GeolocationManager {
@@ -58,142 +8,32 @@ class GeolocationManager {
         this.currentPosition = null;
         this.watchId = null;
         this.isTracking = false;
-        this.onLocationUpdate = null;
-        this.onError = null;
-        this.modelRetry = new ModelRetry();
+        this.retry = new ModelRetry();
+        
+        // API endpoints
+        this.osrmBaseUrl = 'https://router.project-osrm.org/route/v1/driving/';
+        this.nominatimUrl = 'https://nominatim.openstreetmap.org/search';
+        this.mapsCoUrl = 'https://geocode.maps.co/search';
+        this.mapsCoApiKey = '6884e5765d15b402837211woq4549eb';
     }
 
     /**
-     * Check and request geolocation permissions
-     */
-    async requestPermission() {
-        if (!navigator.permissions || !navigator.permissions.query) {
-            // Fallback for browsers that don't support permissions API
-            return new Promise((resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                    () => resolve(true),
-                    () => resolve(false),
-                    { timeout: 10000 }
-                );
-            });
-        }
-
-        try {
-            const result = await navigator.permissions.query({ name: 'geolocation' });
-            if (result.state === 'granted') {
-                return true;
-            } else if (result.state === 'prompt') {
-                // Request permission by getting position
-                return new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(
-                        () => resolve(true),
-                        () => resolve(false),
-                        { timeout: 10000 }
-                    );
-                });
-            }
-            return result.state === 'granted';
-        } catch (error) {
-            console.warn('Could not query geolocation permission:', error);
-            return false;
-        }
-    }
-
-    /**
-     * Get current position once
+     * Request GPS permission and get current position
+     * @returns {Promise<Object>} Current position with lat/lng
      */
     async getCurrentPosition() {
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
                 reject(new Error('Geolocation is not supported by this browser'));
                 return;
             }
 
-            // First check/request permission
-            const hasPermission = await this.requestPermission();
-            if (!hasPermission) {
-                reject(new Error('Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.'));
-                return;
-            }
-
             const options = {
                 enableHighAccuracy: true,
-                timeout: 20000, // Increased timeout for mobile
-                maximumAge: 30000 // Reduced cache time
+                timeout: 10000,
+                maximumAge: 30000 // 30 seconds cache
             };
 
-            // Try to get cached position first
-            const cachedPosition = this.getCurrentPositionSync();
-            if (cachedPosition && (Date.now() - cachedPosition.timestamp) < options.maximumAge) {
-                resolve(cachedPosition);
-                return;
-            }
-
-            let timeoutId = setTimeout(() => {
-                timeoutId = null;
-                reject(new Error('Locatie ophalen duurde te lang. Controleer je GPS signaal.'));
-            }, options.timeout);
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                        this.currentPosition = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                            accuracy: position.coords.accuracy,
-                            timestamp: position.timestamp
-                        };
-                        resolve(this.currentPosition);
-                    }
-                },
-                (error) => {
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                        const errorMessage = this.getErrorMessage(error);
-                        console.error('Geolocation error:', {
-                            code: error.code,
-                            message: error.message,
-                            userMessage: errorMessage
-                        });
-                        reject(new Error(errorMessage));
-                    }
-                },
-                options
-            );
-        });
-    }
-
-    /**
-     * Start continuous location tracking
-     */
-    startTracking(onUpdate, onError) {
-        if (this.isTracking) {
-            return;
-        }
-
-        if (!navigator.geolocation) {
-            if (onError) onError(new Error('Geolocation is not supported by this browser'));
-            return;
-        }
-
-        this.requestPermission().then(hasPermission => {
-            if (!hasPermission) {
-                if (onError) onError(new Error('Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.'));
-                return;
-            }
-
-            this.onLocationUpdate = onUpdate;
-            this.onError = onError;
-            this.isTracking = true;
-
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 20000, // Increased timeout for mobile
-                maximumAge: 15000 // Reduced cache time for more frequent updates
-            };
-
-            // Get initial position
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     this.currentPosition = {
@@ -202,49 +42,11 @@ class GeolocationManager {
                         accuracy: position.coords.accuracy,
                         timestamp: position.timestamp
                     };
-                    
-                    if (this.onLocationUpdate) {
-                        this.onLocationUpdate(this.currentPosition);
-                    }
-
-                    // Start watching after initial position
-                    this.watchId = navigator.geolocation.watchPosition(
-                        (position) => {
-                            this.currentPosition = {
-                                lat: position.coords.latitude,
-                                lng: position.coords.longitude,
-                                accuracy: position.coords.accuracy,
-                                timestamp: position.timestamp
-                            };
-                            
-                            if (this.onLocationUpdate) {
-                                this.onLocationUpdate(this.currentPosition);
-                            }
-                        },
-                        (error) => {
-                            const errorMessage = this.getErrorMessage(error);
-                            console.error('Geolocation watch error:', {
-                                code: error.code,
-                                message: error.message,
-                                userMessage: errorMessage
-                            });
-                            if (this.onError) {
-                                this.onError(new Error(errorMessage));
-                            }
-                        },
-                        options
-                    );
+                    resolve(this.currentPosition);
                 },
                 (error) => {
-                    const errorMessage = this.getErrorMessage(error);
-                    console.error('Initial geolocation error:', {
-                        code: error.code,
-                        message: error.message,
-                        userMessage: errorMessage
-                    });
-                    if (this.onError) {
-                        this.onError(new Error(errorMessage));
-                    }
+                    console.error('Geolocation error:', error);
+                    reject(new Error(this.getGeolocationErrorMessage(error)));
                 },
                 options
             );
@@ -252,335 +54,347 @@ class GeolocationManager {
     }
 
     /**
-     * Reset all state
+     * Start GPS tracking
+     * @param {Function} onPositionUpdate - Callback for position updates
+     * @param {Function} onError - Callback for errors
      */
-    reset() {
-        this.stopTracking();
-        this.currentPosition = null;
-        this.modelRetry.reset();
+    startTracking(onPositionUpdate, onError) {
+        if (this.isTracking) {
+            console.warn('GPS tracking already active');
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            onError(new Error('Geolocation is not supported'));
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000
+        };
+
+        this.watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                this.currentPosition = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    timestamp: position.timestamp
+                };
+                this.isTracking = true;
+                onPositionUpdate(this.currentPosition);
+            },
+            (error) => {
+                console.error('GPS tracking error:', error);
+                onError(new Error(this.getGeolocationErrorMessage(error)));
+            },
+            options
+        );
     }
 
     /**
-     * Stop location tracking
+     * Stop GPS tracking
      */
     stopTracking() {
         if (this.watchId && navigator.geolocation) {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = null;
+            this.isTracking = false;
         }
-        this.isTracking = false;
-        this.onLocationUpdate = null;
-        this.onError = null;
-        this.modelRetry.reset(); // Reset retry state
     }
 
     /**
-     * Geocode an address using a reliable geocoding service
+     * Geocode address to coordinates using fallback services
+     * @param {string} address - Address to geocode
+     * @returns {Promise<Object>} Geocoded result with lat/lng and address
      */
     async geocodeAddress(address) {
-        if (!address || address.trim() === '') {
-            throw new Error('Address is required');
+        if (!address || typeof address !== 'string') {
+            throw new Error('Invalid address provided');
         }
 
-        // Get current position for better local search (optional)
-        let searchArea = null;
+        // Try Nominatim first (primary service)
         try {
-            const position = await this.getCurrentPosition();
-            if (position) {
-                searchArea = {
-                    lat: position.lat,
-                    lon: position.lng
-                };
-            }
+            const result = await this.geocodeWithNominatim(address);
+            if (result) return result;
         } catch (error) {
-            console.warn('Could not get current position for local search:', error);
+            console.warn('Nominatim geocoding failed:', error);
         }
 
-        return this.modelRetry.execute(async () => {
-            const encodedAddress = encodeURIComponent(address.trim());
-            
-            // Try multiple geocoding services for better reliability
-            const services = [
-                // Service 1: OpenStreetMap Nominatim API (most reliable for international addresses)
-                {
-                    url: `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1${
-                        searchArea ? `&lat=${searchArea.lat}&lon=${searchArea.lon}` : ''
-                    }`,
-                    parser: async (data) => {
-                        if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
-                        const result = data[0];
-                        return {
-                            lat: parseFloat(result.lat),
-                            lng: parseFloat(result.lon),
-                            displayName: result.display_name,
-                            address: result.address,
-                            countryCode: result.address?.country_code?.toUpperCase() || null
-                        };
-                    }
-                },
-                // Service 2: Alternative geocoding service (maps.co)
-                {
-                    url: `https://geocode.maps.co/search?q=${encodedAddress}&api_key=6884e5765d15b402837211woq4549eb${
-                        searchArea ? `&lat=${searchArea.lat}&lon=${searchArea.lon}` : ''
-                    }`,
-                    parser: async (data) => {
-                        if (!data || data.length === 0) throw new Error(`Adres niet gevonden: ${address}`);
-                        const result = data[0];
-                        return {
-                            lat: parseFloat(result.lat),
-                            lng: parseFloat(result.lon),
-                            displayName: result.display_name || address,
-                            address: result.address || address,
-                            countryCode: null
-                        };
-                    }
-                }
-            ];
+        // Fallback to Maps.co
+        try {
+            const result = await this.geocodeWithMapsCo(address);
+            if (result) return result;
+        } catch (error) {
+            console.warn('Maps.co geocoding failed:', error);
+        }
 
-            // Try each service with timeout
-            const timeout = 10000; // 10 seconds timeout
-            let lastError = null;
-            let serviceErrors = [];
-
-            for (const service of services) {
-                try {
-                    console.log('🔍 Trying geocoding service:', {
-                        service: service.url,
-                        address: address,
-                        searchArea: searchArea
-                    });
-
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-                    const response = await fetch(service.url, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'User-Agent': 'ZijnWeErAlBijna/1.0 (https://mattijn.github.io/zijn-we-er-al-bijna/)'
-                        },
-                        signal: controller.signal
-                    });
-
-                    clearTimeout(timeoutId);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    if (!data) {
-                        throw new Error('Invalid response data');
-                    }
-
-                    const result = await service.parser(data);
-                    
-                    // Valideer alleen de basis coördinaten
-                    if (!result.lat || !result.lng || 
-                        result.lat < -90 || result.lat > 90 || 
-                        result.lng < -180 || result.lng > 180) {
-                        throw new Error('Ongeldige coördinaten ontvangen');
-                    }
-                    
-                    console.log('✅ Geocoding successful:', {
-                        address: address,
-                        result: result,
-                        service: service.url,
-                        searchArea: searchArea
-                    });
-                    return result;
-
-                } catch (error) {
-                    console.warn('❌ Geocoding service failed:', {
-                        service: service.url,
-                        error: error.message,
-                        address: address,
-                        searchArea: searchArea
-                    });
-                    
-                    serviceErrors.push({
-                        service: service.url,
-                        error: error.message
-                    });
-                    
-                    if (error.name === 'AbortError') {
-                        lastError = new Error(`Geocoding request timed out voor "${address}". Controleer je internetverbinding.`);
-                    } else {
-                        lastError = error;
-                    }
-                    continue; // Try next service
-                }
-            }
-
-            // If all services fail, throw a detailed error
-            console.error('❌ All geocoding services failed:', {
-                address: address,
-                errors: serviceErrors,
-                searchArea: searchArea
-            });
-            
-            throw new Error(`Kon het adres "${address}" niet vinden. Controleer het adres of je internetverbinding.`);
-        });
+        throw new Error('Geocoding failed for all services');
     }
 
     /**
-     * Calculate distance between two points using OSRM with retry logic
+     * Geocode using Nominatim (OpenStreetMap)
+     * @param {string} address - Address to geocode
+     * @returns {Promise<Object|null>} Geocoded result or null
      */
-    async calculateDistance(lat1, lng1, lat2, lng2) {
+    async geocodeWithNominatim(address) {
+        const params = new URLSearchParams({
+            q: address,
+            format: 'json',
+            limit: '1',
+            addressdetails: '1'
+        });
+
+        const response = await this.retry.fetch(`${this.nominatimUrl}?${params}`, {
+            headers: {
+                'User-Agent': 'ZijnWeErAlBijna/1.0 (https://github.com/your-repo)'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Nominatim API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const result = data[0];
+            return {
+                lat: parseFloat(result.lat),
+                lng: parseFloat(result.lon),
+                address: result.display_name,
+                type: 'nominatim'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Geocode using Maps.co (fallback service)
+     * @param {string} address - Address to geocode
+     * @returns {Promise<Object|null>} Geocoded result or null
+     */
+    async geocodeWithMapsCo(address) {
+        const params = new URLSearchParams({
+            q: address,
+            api_key: this.mapsCoApiKey
+        });
+
+        const response = await this.retry.fetch(`${this.mapsCoUrl}?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`Maps.co API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const result = data[0];
+            return {
+                lat: parseFloat(result.lat),
+                lng: parseFloat(result.lon),
+                address: result.display_name || address,
+                type: 'mapsco'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Get route information from OSRM
+     * @param {Object} start - Start coordinates {lat, lng}
+     * @param {Object} end - End coordinates {lat, lng}
+     * @param {Object} via - Optional via coordinates {lat, lng}
+     * @returns {Promise<Object>} Route information
+     */
+    async getRouteInfo(start, end, via = null) {
+        if (!start || !end) {
+            throw new Error('Start and end coordinates are required');
+        }
+
+        let coordinates = `${start.lng},${start.lat};${end.lng},${end.lat}`;
+        
+        if (via) {
+            coordinates = `${start.lng},${start.lat};${via.lng},${via.lat};${end.lng},${end.lat}`;
+        }
+
+        const params = new URLSearchParams({
+            overview: 'false',
+            steps: 'false',
+            annotations: 'false'
+        });
+
+        const response = await this.retry.fetch(`${this.osrmBaseUrl}${coordinates}?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`OSRM API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+            throw new Error('No route found');
+        }
+
+        const route = data.routes[0];
+        return {
+            distance: route.distance / 1000, // Convert to kilometers
+            duration: route.duration, // Duration in seconds
+            averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
+            totalDistance: route.distance / 1000 // Total route distance
+        };
+    }
+
+    /**
+     * Get distance between two points using OSRM API
+     * @param {Object} point1 - First point {lat, lng}
+     * @param {Object} point2 - Second point {lat, lng}
+     * @returns {Promise<number>} Distance in kilometers
+     */
+    async getDistance(point1, point2) {
         try {
-            const origin = { lat: lat1, lng: lng1 };
-            const destination = { lat: lat2, lng: lng2 };
-            const routeInfo = await this.modelRetry.execute(async () => {
-                const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
-                
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('OSRM route request failed');
-                }
-                
-                const data = await response.json();
-                
-                if (data.routes && data.routes.length > 0) {
-                    const route = data.routes[0];
-                    const leg = route.legs[0];
-                    
-                    return {
-                        distance: route.distance / 1000, // Convert to kilometers
-                        duration: route.duration / 60, // Convert to minutes
-                        averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
-                        roadTypes: this.analyzeRoadTypes(leg.annotation?.speed || []),
-                        waypoints: leg.annotation?.speed || []
-                    };
-                } else {
-                    throw new Error('No route found');
-                }
-            });
+            const routeInfo = await this.getRouteInfo(point1, point2);
             return routeInfo.distance;
         } catch (error) {
-            console.error('OSRM distance calculation failed:', error);
-            throw new Error('Could not calculate distance. Please check your internet connection.');
+            console.warn('Failed to get distance via OSRM, using fallback calculation:', error);
+            // Fallback to simple calculation if OSRM fails
+            return this.calculateSimpleDistance(point1, point2);
         }
     }
 
     /**
-     * Get route information using OSRM with retry logic
+     * Simple distance calculation as fallback (not as accurate as OSRM)
+     * @param {Object} point1 - First point {lat, lng}
+     * @param {Object} point2 - Second point {lat, lng}
+     * @returns {number} Approximate distance in kilometers
      */
-    async getRouteInfo(origin, destination) {
-        return this.modelRetry.execute(async () => {
-            const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false&annotations=true`;
-            
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error('OSRM route request failed');
-            }
-            
-            const data = await response.json();
-            
-            if (data.routes && data.routes.length > 0) {
-                const route = data.routes[0];
-                const leg = route.legs[0];
-                
-                return {
-                    distance: route.distance / 1000, // Convert to kilometers
-                    duration: route.duration / 60, // Convert to minutes
-                    averageSpeed: (route.distance / 1000) / (route.duration / 3600), // km/h
-                    roadTypes: this.analyzeRoadTypes(leg.annotation?.speed || []),
-                    waypoints: leg.annotation?.speed || []
-                };
-            } else {
-                throw new Error('No route found');
-            }
-        });
+    calculateSimpleDistance(point1, point2) {
+        const R = 6371; // Earth's radius in kilometers
+        const dLat = (point2.lat - point1.lat) * (Math.PI / 180);
+        const dLng = (point2.lng - point1.lng) * (Math.PI / 180);
+        
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(point1.lat * (Math.PI / 180)) * Math.cos(point2.lat * (Math.PI / 180)) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     /**
-     * Analyze road types from OSRM speed data
+     * Get user-friendly geolocation error message
+     * @param {Object} error - Geolocation error object
+     * @returns {string} User-friendly error message
      */
-    analyzeRoadTypes(speedData) {
-        if (!speedData || !Array.isArray(speedData) || speedData.length === 0) {
-            console.warn('No speed data available from OSRM');
-            return null;
-        }
-        
-        const roadTypes = {
-            highway: 0,    // Snelweg (> 100 km/h)
-            primary: 0,    // Provinciale weg (80-100 km/h)
-            secondary: 0,  // Secundaire weg (70-80 km/h)
-            residential: 0 // Woonwijk (30-50 km/h)
-        };
-        
-        // Categorize road types based on speed data (convert m/s to km/h)
-        speedData.forEach(speed => {
-            if (!speed || speed <= 0) return; // Skip invalid speeds
-            
-            // Convert m/s to km/h: speed * 3.6
-            const speedKmh = speed * 3.6;
-            
-            if (speedKmh > 100) roadTypes.highway++;
-            else if (speedKmh > 80) roadTypes.primary++;
-            else if (speedKmh > 50) roadTypes.secondary++;
-            else roadTypes.residential++;
-        });
-        
-        return roadTypes;
-    }
-
-    /**
-     * Get expected speed based on road type
-     */
-    getExpectedSpeed(roadTypes) {
-        if (!roadTypes) return 80; // Default fallback
-        
-        const total = Object.values(roadTypes).reduce((sum, distance) => sum + distance, 0);
-        if (total === 0) return 80;
-        
-        // Weighted average based on road type distribution (distance-weighted)
-        const weightedSpeed = (
-            (roadTypes.highway * 120) +
-            (roadTypes.primary * 90) +
-            (roadTypes.secondary * 75) +
-            (roadTypes.residential * 40)
-        ) / total;
-        
-        return Math.round(weightedSpeed);
-    }
-
-    /**
-     * Convert degrees to radians
-     */
-    toRadians(degrees) {
-        return degrees * (Math.PI / 180);
-    }
-
-    /**
-     * Get user-friendly error message
-     */
-    getErrorMessage(error) {
+    getGeolocationErrorMessage(error) {
         switch (error.code) {
             case error.PERMISSION_DENIED:
-                return 'Locatie toegang geweigerd. Controleer je browser instellingen en geef toestemming voor locatie.';
+                return 'Locatie toegang geweigerd. Controleer je browser instellingen.';
             case error.POSITION_UNAVAILABLE:
-                return 'Locatie informatie is niet beschikbaar. Controleer of GPS is ingeschakeld.';
+                return 'Locatie informatie niet beschikbaar. Probeer het opnieuw.';
             case error.TIMEOUT:
-                return 'Locatie ophalen duurde te lang. Controleer je GPS signaal en internetverbinding.';
+                return 'Locatie tijd overschreden. Controleer je internetverbinding.';
             default:
-                return `Er is een fout opgetreden bij het ophalen van je locatie: ${error.message}`;
+                return 'Er is een fout opgetreden bij het ophalen van je locatie.';
         }
     }
 
     /**
-     * Check if geolocation is supported and available
+     * Request GPS permission explicitly
+     * @returns {Promise<boolean>} True if permission granted
      */
-    isSupported() {
-        return !!navigator.geolocation;
+    async requestPermission() {
+        try {
+            await this.getCurrentPosition();
+            return true;
+        } catch (error) {
+            console.error('GPS permission denied:', error);
+            return false;
+        }
     }
 
     /**
-     * Get current position if available
+     * Get current tracking status
+     * @returns {Object} Tracking status information
      */
-    getCurrentPositionSync() {
-        return this.currentPosition;
+    getTrackingStatus() {
+        return {
+            isTracking: this.isTracking,
+            hasPosition: !!this.currentPosition,
+            position: this.currentPosition,
+            watchId: this.watchId
+        };
     }
 }
 
-// Create global instance
-window.geolocationManager = new GeolocationManager(); 
+/**
+ * ModelRetry - Retry mechanism for API calls
+ */
+class ModelRetry {
+    constructor(maxAttempts = 3, retryDelay = 1000, failDelay = 30000) {
+        this.maxAttempts = maxAttempts;
+        this.retryDelay = retryDelay;
+        this.failDelay = failDelay;
+        this.failedAttempts = 0;
+        this.lastFailureTime = 0;
+    }
+
+    /**
+     * Fetch with retry mechanism
+     * @param {string} url - URL to fetch
+     * @param {Object} options - Fetch options
+     * @returns {Promise<Response>} Fetch response
+     */
+    async fetch(url, options = {}) {
+        // Check if we're in a failure delay period
+        if (this.failedAttempts >= this.maxAttempts) {
+            const timeSinceLastFailure = Date.now() - this.lastFailureTime;
+            if (timeSinceLastFailure < this.failDelay) {
+                const remainingDelay = this.failDelay - timeSinceLastFailure;
+                throw new Error(`API temporarily unavailable. Try again in ${Math.ceil(remainingDelay / 1000)} seconds.`);
+            }
+            // Reset after delay period
+            this.failedAttempts = 0;
+        }
+
+        try {
+            const response = await fetch(url, options);
+            
+            if (response.ok) {
+                // Reset on success
+                this.failedAttempts = 0;
+                return response;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            this.failedAttempts++;
+            this.lastFailureTime = Date.now();
+
+            if (this.failedAttempts >= this.maxAttempts) {
+                throw new Error(`API request failed after ${this.maxAttempts} attempts: ${error.message}`);
+            }
+
+            // Wait before retry
+            await this.delay(this.retryDelay);
+            return this.fetch(url, options); // Recursive retry
+        }
+    }
+
+    /**
+     * Delay helper
+     * @param {number} ms - Milliseconds to delay
+     * @returns {Promise} Promise that resolves after delay
+     */
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Export for use in other modules
+window.GeolocationManager = GeolocationManager;
+window.ModelRetry = ModelRetry; 

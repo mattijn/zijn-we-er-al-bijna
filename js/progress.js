@@ -1,796 +1,435 @@
 /**
- * Progress Tracking Module
- * Handles trip progress calculations and visual updates
+ * ProgressTracker - Calculates and displays trip progress and statistics
+ * Handles progress bar updates, statistics calculations, and achievement tracking
  */
 
 class ProgressTracker {
     constructor() {
-        this.tripData = {
-            origin: null,
-            destination: null,
-            nextStop: null,
-            startTime: null,
-            totalDistance: 0,
-            distanceTraveled: 0,
-            isActive: false
-        };
+        this.tripData = null;
+        this.currentPosition = null;
+        this.updateInterval = null;
+        this.lastUpdateTime = 0;
         
-        this.onProgressUpdate = null;
-        this.onTripComplete = null;
+        // DOM elements
+        this.elements = {
+            progressFillDestination: document.getElementById('progress-fill-destination'),
+            progressFillNextStop: document.getElementById('progress-fill-nextstop'),
+            nextStopProgress: document.getElementById('next-stop-progress'),
+            nextStopStat: document.getElementById('next-stop-stat'),
+            remainingTime: document.getElementById('remaining-time'),
+            traveledDistance: document.getElementById('traveled-distance'),
+            progress: document.getElementById('progress'),
+            remainingDistance: document.getElementById('remaining-distance'),
+            nextStopTime: document.getElementById('next-stop-time')
+        };
     }
 
     /**
-     * Initialize a new trip
+     * Start a new trip
+     * @param {Object} tripData - Trip data object
      */
-    async startTrip(destinationAddress, nextStopAddress = null) {
-        try {
-            // Debug: Log the addresses being used
-            console.log('🔍 DEBUG - startTrip called with:');
-            console.log('Destination address:', destinationAddress);
-            console.log('Next stop address:', nextStopAddress);
-            
-            // Get current location as origin
-            const origin = await window.geolocationManager.getCurrentPosition();
-            if (!origin) {
-                throw new Error('Kon je huidige locatie niet bepalen');
-            }
-            
-            // Geocode destination
-            const destination = await window.geolocationManager.geocodeAddress(destinationAddress);
-            if (!destination) {
-                throw new Error(`Kon het adres "${destinationAddress}" niet vinden`);
-            }
-            
-            // Geocode next stop if provided
-            let nextStop = null;
-            if (nextStopAddress && nextStopAddress.trim() !== '') {
-                nextStop = await window.geolocationManager.geocodeAddress(nextStopAddress);
-                if (!nextStop) {
-                    throw new Error(`Kon de tussenstop "${nextStopAddress}" niet vinden`);
-                }
-            }
-
-            // Debug: Log the geocoding results
-            console.log('🔍 DEBUG - Geocoding results:');
-            console.log('Origin:', origin);
-            console.log('Destination:', destination);
-            console.log('Next stop:', nextStop);
-
-            // Get route information using OSRM for better calculations
-            const routeInfo = await window.geolocationManager.getRouteInfo(origin, destination);
-            if (!routeInfo || typeof routeInfo.distance !== 'number') {
-                throw new Error('Kon geen route berekenen naar je bestemming');
-            }
-            
-            // Debug: Log the route information
-            console.log('🔍 DEBUG - Route info:');
-            console.log('OSRM distance:', routeInfo.distance, 'km');
-            console.log('OSRM duration:', routeInfo.duration, 'min');
-            console.log('OSRM average speed:', routeInfo.averageSpeed, 'km/h');
-
-            // Hide or show next stop progress bar based on whether we have a next stop
-            const nextStopProgress = document.getElementById('next-stop-progress');
-            if (nextStopProgress) {
-                if (nextStop) {
-                    nextStopProgress.style.display = 'block';
-                } else {
-                    nextStopProgress.style.display = 'none';
-                }
-            }
-
-            this.tripData = {
-                origin: origin,
-                destination: destination,
-                nextStop: nextStop,
-                nextStopOrigin: nextStop ? origin : null,
-                startTime: Date.now(),
-                totalDistance: routeInfo.distance,
-                distanceTraveled: 0,
-                isActive: true,
-                routeInfo: routeInfo, // Store OSRM route data
-                speedHistory: [], // Track speed history for better calculations
-                lastUpdateTime: Date.now()
-            };
-
-            // Start location tracking
-            window.geolocationManager.startTracking(
-                (position) => this.updateProgress(position),
-                (error) => this.handleLocationError(error)
-            );
-
-            // Get current position and do initial progress update
-            const currentPosition = await window.geolocationManager.getCurrentPosition();
-            if (!currentPosition) {
-                throw new Error('Kon je huidige locatie niet bepalen voor de eerste update');
-            }
-            
-            await this.updateProgress(currentPosition);
-            
-            return this.tripData;
-
-        } catch (error) {
-            console.error('Error starting trip:', error);
-            // Reset trip data to prevent undefined errors
-            this.resetTrip();
-            throw error;
-        }
+    startTrip(tripData) {
+        this.tripData = tripData;
+        this.lastUpdateTime = Date.now();
+        
+        // Show next stop progress if available
+        this.updateNextStopVisibility();
+        
+        // Start periodic updates
+        this.startPeriodicUpdates();
+        
+        // Initial update
+        this.updateDisplay();
     }
 
     /**
-     * Update progress based on current position
+     * Update progress with new position
+     * @param {Object} position - Current GPS position
      */
-    async updateProgress(currentPosition) {
-        if (!this.tripData.isActive || !this.tripData.origin || !this.tripData.destination) {
-            return;
-        }
+    async updateProgress(position) {
+        if (!this.tripData || !position) return;
+
+        this.currentPosition = position;
+        this.lastUpdateTime = Date.now();
+
+        // Calculate new progress
+        await this.calculateProgress();
+        
+        // Update display
+        this.updateDisplay();
+        
+        // Save updated trip data
+        this.saveTripData();
+    }
+
+    /**
+     * Calculate current progress
+     */
+    async calculateProgress() {
+        if (!this.tripData || !this.currentPosition) return;
 
         try {
-            const now = Date.now();
-            
-            // Get updated route info from current position
-            console.log('🔄 Updating route info:', {
-                from: currentPosition,
-                to: this.tripData.destination
-            });
-
-            const currentRouteInfo = await window.geolocationManager.getRouteInfo(
-                currentPosition,
+            // Calculate distance to destination using OSRM
+            const distanceToDestination = await this.geolocationManager.getDistance(
+                this.currentPosition,
                 this.tripData.destination
             );
 
-            // Store the updated route info for time calculations
-            this.tripData.routeInfo = currentRouteInfo;
-            this.tripData.lastUpdateTime = now;
+            // Calculate total distance (from start to destination)
+            const totalDistance = await this.geolocationManager.getDistance(
+                this.tripData.startLocation,
+                this.tripData.destination
+            );
 
-            // Calculate progress based on OSRM route distances
-            const distanceFromOrigin = this.tripData.totalDistance - currentRouteInfo.distance;
-            const progressPercentage = Math.min(100, Math.max(0, 
-                (distanceFromOrigin / this.tripData.totalDistance) * 100
-            ));
+            // Calculate traveled distance
+            const traveledDistance = await this.geolocationManager.getDistance(
+                this.tripData.startLocation,
+                this.currentPosition
+            );
 
-            console.log('📊 Progress update:', {
-                totalDistance: this.tripData.totalDistance.toFixed(1) + ' km',
-                remainingDistance: currentRouteInfo.distance.toFixed(1) + ' km',
-                distanceFromOrigin: distanceFromOrigin.toFixed(1) + ' km',
-                progressPercentage: progressPercentage.toFixed(1) + '%'
-            });
+            // Calculate progress percentage
+            const progressPercentage = Math.min(100, Math.max(0, (traveledDistance / totalDistance) * 100));
 
-            // Update display with new progress
-            await this.updateDisplay(progressPercentage, currentRouteInfo.distance);
+            // Update trip data
+            this.tripData.currentPosition = this.currentPosition;
+            this.tripData.distanceToDestination = distanceToDestination;
+            this.tripData.traveledDistance = traveledDistance;
+            this.tripData.progressPercentage = progressPercentage;
 
-            // Check if we've reached the destination (within 50 meters)
-            if (currentRouteInfo.distance <= 0.05) {
-                console.log('🏁 Destination reached!');
-                await this.completeTrip();
-                return;
-            }
+            // Calculate time remaining
+            this.calculateTimeRemaining();
 
-            // Call progress callback if set
-            if (this.onProgressUpdate) {
-                this.onProgressUpdate({
-                    progressPercentage,
-                    distanceTraveled: distanceFromOrigin,
-                    remainingDistance: currentRouteInfo.distance,
-                    totalDistance: this.tripData.totalDistance
-                });
+            // Calculate next stop progress if available
+            if (this.tripData.nextStop) {
+                await this.calculateNextStopProgress();
             }
         } catch (error) {
-            console.error('❌ Error updating progress:', error);
-            this.handleLocationError(error);
+            console.error('Error calculating progress:', error);
         }
     }
 
     /**
-     * Update display with current progress
+     * Calculate time remaining to destination
      */
-    async updateDisplay(progressPercentage = 0, remainingDistance = this.tripData.totalDistance) {
-        // Update destination progress bar
-        const progressFillDestination = document.getElementById('progress-fill-destination');
-        const progressIndicatorDestination = document.getElementById('progress-indicator-destination');
-        
-        if (progressFillDestination && progressIndicatorDestination) {
-            progressFillDestination.style.height = `${progressPercentage}%`;
-            progressIndicatorDestination.style.bottom = `${progressPercentage}%`;
-        }
+    calculateTimeRemaining() {
+        if (!this.tripData || !this.tripData.distanceToDestination) return;
 
-        // Update next stop progress bar if exists
-        if (this.tripData.nextStop) {
-            this.updateNextStopProgress();
-        } else {
-            // Hide next stop progress bar
-            const nextStopProgress = document.getElementById('progress-nextstop');
-            if (nextStopProgress) {
-                nextStopProgress.style.display = 'none';
-            }
-        }
+        // Use average speed from route calculation or default
+        const averageSpeed = this.tripData.averageSpeed || 80; // km/h default
+        const timeInHours = this.tripData.distanceToDestination / averageSpeed;
+        const timeInMinutes = Math.round(timeInHours * 60);
 
-        // Update remaining time
-        const remainingTimeEl = document.getElementById('remaining-time');
-        if (remainingTimeEl) {
-            const remainingTime = await this.calculateTimeRemaining(remainingDistance);
-            if (remainingTime) {
-                remainingTimeEl.textContent = remainingTime;
-            } else {
-                remainingTimeEl.textContent = '--:--';
-            }
-        }
-
-        // Update next stop time if available
-        const nextStopTimeEl = document.getElementById('next-stop-time');
-        if (nextStopTimeEl) {
-            if (this.tripData.nextStop && this.tripData.startTime) {
-                const nextStopTime = await this.calculateTimeToNextStop();
-                if (nextStopTime) {
-                    nextStopTimeEl.textContent = nextStopTime;
-                } else {
-                    nextStopTimeEl.textContent = '--:--';
-                }
-            } else {
-                nextStopTimeEl.textContent = '--:--';
-            }
-        }
-
-        // Update remaining distance
-        const remainingDistanceEl = document.getElementById('remaining-distance');
-        if (remainingDistanceEl) {
-            remainingDistanceEl.textContent = `${remainingDistance.toFixed(1)} km`;
-        }
-
-        // Update traveled distance
-        const traveledDistanceEl = document.getElementById('traveled-distance');
-        if (traveledDistanceEl) {
-            const traveledDistance = Math.max(0, this.tripData.totalDistance - remainingDistance);
-            traveledDistanceEl.textContent = `${traveledDistance.toFixed(1)} km`;
-        }
-
-        // Update progress percentage
-        const progressEl = document.getElementById('progress');
-        if (progressEl) {
-            progressEl.textContent = `${Math.round(progressPercentage)}%`;
-        }
-
-        // Update status
-        this.updateStatus(progressPercentage, remainingDistance);
-
-        // Check achievements
-        this.checkAchievements(progressPercentage, remainingDistance);
+        this.tripData.timeRemaining = timeInMinutes;
     }
 
     /**
-     * Update next stop progress bar
+     * Calculate next stop progress
+     */
+    async calculateNextStopProgress() {
+        if (!this.tripData.nextStop || !this.currentPosition) return;
+
+        try {
+            // Calculate distance to next stop from current position
+            const distanceToNextStop = await this.geolocationManager.getDistance(
+                this.currentPosition,
+                this.tripData.nextStop
+            );
+
+            // Determine the start location for next stop calculations
+            // If nextStopStartLocation exists, use that (for updated stops)
+            // Otherwise use the original start location
+            const nextStopStartLocation = this.tripData.nextStopStartLocation || this.tripData.startLocation;
+
+            // Calculate total distance to next stop (from the appropriate start location)
+            const totalDistanceToNextStop = await this.geolocationManager.getDistance(
+                nextStopStartLocation,
+                this.tripData.nextStop
+            );
+
+            // Calculate traveled distance to next stop (from the appropriate start location)
+            const traveledDistanceToNextStop = await this.geolocationManager.getDistance(
+                nextStopStartLocation,
+                this.currentPosition
+            );
+
+            // Calculate progress percentage to next stop
+            const nextStopProgressPercentage = Math.min(100, Math.max(0, 
+                (traveledDistanceToNextStop / totalDistanceToNextStop) * 100
+            ));
+
+            // Calculate time to next stop
+            const averageSpeed = this.tripData.averageSpeed || 80;
+            const timeToNextStopInHours = distanceToNextStop / averageSpeed;
+            const timeToNextStopInMinutes = Math.round(timeToNextStopInHours * 60);
+
+            // Update trip data
+            this.tripData.distanceToNextStop = distanceToNextStop;
+            this.tripData.nextStopProgressPercentage = nextStopProgressPercentage;
+            this.tripData.timeToNextStop = timeToNextStopInMinutes;
+        } catch (error) {
+            console.error('Error calculating next stop progress:', error);
+        }
+    }
+
+    /**
+     * Update the display with current progress
+     */
+    updateDisplay() {
+        if (!this.tripData) return;
+
+        // Update progress bars
+        this.updateProgressBars();
+        
+        // Update statistics
+        this.updateStatistics();
+    }
+
+    /**
+     * Update progress bars
+     */
+    updateProgressBars() {
+        // Main destination progress
+        if (this.elements.progressFillDestination) {
+            const progress = this.tripData.progressPercentage || 0;
+            this.elements.progressFillDestination.style.width = `${progress}%`;
+        }
+
+        // Next stop progress
+        if (this.elements.progressFillNextStop && this.tripData.nextStop) {
+            const progress = this.tripData.nextStopProgressPercentage || 0;
+            this.elements.progressFillNextStop.style.width = `${progress}%`;
+        }
+    }
+
+    /**
+     * Update statistics display
+     */
+    updateStatistics() {
+        // Time remaining
+        if (this.elements.remainingTime) {
+            const timeRemaining = this.tripData.timeRemaining || 0;
+            this.elements.remainingTime.textContent = this.formatTime(timeRemaining);
+        }
+
+        // Traveled distance
+        if (this.elements.traveledDistance) {
+            const traveledDistance = this.tripData.traveledDistance || 0;
+            this.elements.traveledDistance.textContent = `${traveledDistance.toFixed(1)} km`;
+        }
+
+        // Progress percentage
+        if (this.elements.progress) {
+            const progress = this.tripData.progressPercentage || 0;
+            this.elements.progress.textContent = `${Math.round(progress)}%`;
+        }
+
+        // Remaining distance
+        if (this.elements.remainingDistance) {
+            const remainingDistance = this.tripData.distanceToDestination || 0;
+            this.elements.remainingDistance.textContent = `${remainingDistance.toFixed(1)} km`;
+        }
+
+        // Next stop time (if available)
+        if (this.elements.nextStopTime && this.tripData.nextStop) {
+            const timeToNextStop = this.tripData.timeToNextStop || 0;
+            this.elements.nextStopTime.textContent = this.formatTime(timeToNextStop);
+        }
+    }
+
+    /**
+     * Update next stop visibility
+     */
+    updateNextStopVisibility() {
+        const hasNextStop = !!(this.tripData && this.tripData.nextStop);
+        
+        if (this.elements.nextStopProgress) {
+            this.elements.nextStopProgress.style.display = hasNextStop ? 'block' : 'none';
+        }
+        
+        if (this.elements.nextStopStat) {
+            this.elements.nextStopStat.style.display = hasNextStop ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * Update next stop progress (for when next stop is added/updated during trip)
      */
     async updateNextStopProgress() {
-        if (!this.tripData.nextStop) {
-            return;
+        if (!this.tripData) return;
+
+        // Recalculate next stop progress
+        if (this.tripData.nextStop) {
+            await this.calculateNextStopProgress();
         }
 
-        try {
-            // Show next stop progress bar
-            const nextStopProgress = document.getElementById('next-stop-progress');
-            if (nextStopProgress) {
-                nextStopProgress.classList.add('visible');
-            }
-
-            // For progress calculation, determine if this is an original or updated next stop
-            const isUpdatedNextStop = this.tripData.nextStopOrigin && 
-                (this.tripData.nextStopOrigin.lat !== this.tripData.origin.lat || 
-                 this.tripData.nextStopOrigin.lng !== this.tripData.origin.lng);
-            
-            // Use nextStopOrigin if this is an updated next stop, otherwise use original origin
-            const nextStopStartPoint = isUpdatedNextStop ? this.tripData.nextStopOrigin : this.tripData.origin;
-            if (!nextStopStartPoint) {
-                return;
-            }
-
-            // Get current position
-            const currentPosition = window.geolocationManager.getCurrentPositionSync();
-            if (!currentPosition) {
-                // If no current position available, show 0% progress but keep the bar visible
-                const progressFillNextStop = document.getElementById('progress-fill-nextstop');
-                const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
-                
-                if (progressFillNextStop && progressIndicatorNextStop) {
-                    progressFillNextStop.style.height = '0%';
-                    progressIndicatorNextStop.style.bottom = '0%';
-                }
-                return;
-            }
-
-            // Get route info for next stop
-            const currentToNextStop = await window.geolocationManager.getRouteInfo(
-                currentPosition,
-                this.tripData.nextStop
-            );
-
-            // Store route info for time calculations
-            this.tripData.nextStopRouteInfo = currentToNextStop;
-
-            // Calculate progress based on OSRM route distances
-            const startToNextStop = await window.geolocationManager.getRouteInfo(
-                nextStopStartPoint,
-                this.tripData.nextStop
-            );
-
-            const totalDistanceToNextStop = startToNextStop.distance;
-            const distanceToNextStop = currentToNextStop.distance;
-            const distanceTraveled = totalDistanceToNextStop - distanceToNextStop;
-            
-            // Calculate progress percentage
-            const progressToNextStop = Math.min(100, Math.max(0, 
-                (distanceTraveled / totalDistanceToNextStop) * 100
-            ));
-
-            // Update next stop progress bar
-            const progressFillNextStop = document.getElementById('progress-fill-nextstop');
-            const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
-            
-            if (progressFillNextStop && progressIndicatorNextStop) {
-                progressFillNextStop.style.height = `${progressToNextStop}%`;
-                progressIndicatorNextStop.style.bottom = `${progressToNextStop}%`;
-            }
-
-            // Check if we've reached the next stop (within 50 meters)
-            if (distanceToNextStop <= 0.05) {
-                this.handleNextStopReached();
-            }
-        } catch (error) {
-            console.error('Error updating next stop progress:', error);
-            // Don't show error to user, just log it
-        }
-    }
-
-    /**
-     * Handle when next stop is reached
-     */
-    handleNextStopReached() {
-        // Show achievement for reaching next stop
-        this.showAchievement('nextStop');
+        // Update visibility
+        this.updateNextStopVisibility();
         
-        // Update status
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '⏸️';
-            statusText.textContent = 'Je bent aangekomen bij je volgende stop!';
+        // Update display
+        this.updateDisplay();
+    }
+
+    /**
+     * Start periodic updates
+     */
+    startPeriodicUpdates() {
+        // Clear existing interval
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+        }
+
+        // Start new interval (update every 30 seconds)
+        this.updateInterval = setInterval(async () => {
+            if (this.tripData && this.currentPosition) {
+                await this.updateProgress(this.currentPosition);
+            }
+        }, 30000);
+    }
+
+    /**
+     * Stop periodic updates
+     */
+    stopPeriodicUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
         }
     }
 
     /**
-     * Calculate time to next stop using OSRM route data
+     * Format time in minutes to HH:MM format
+     * @param {number} minutes - Time in minutes
+     * @returns {string} Formatted time string
      */
-    async calculateTimeToNextStop() {
-        if (!this.tripData.nextStop || !this.tripData.startTime) {
-            return null;
-        }
-
-        try {
-            // Get current position
-            const currentPosition = window.geolocationManager.getCurrentPositionSync();
-            if (!currentPosition) {
-                return null;
-            }
-
-            // Get fresh route info from current position to next stop
-            const currentToNextStop = await window.geolocationManager.getRouteInfo(
-                currentPosition,
-                this.tripData.nextStop
-            );
-
-            if (!currentToNextStop || !currentToNextStop.duration) {
-                return null;
-            }
-
-            // Use the duration directly from OSRM
-            const timeRemaining = currentToNextStop.duration; // minutes
-            
-            // Format time remaining
-            if (timeRemaining >= 60) {
-                const hours = Math.floor(timeRemaining / 60);
-                const minutes = Math.round(timeRemaining % 60);
-                if (hours >= 2) {
-                    return `${hours} uur`;
-                } else {
-                    return `${hours}u ${minutes}m`;
-                }
-            } else {
-                const minutes = Math.round(timeRemaining);
-                return `${minutes} min`;
-            }
-        } catch (error) {
-            console.error('Error calculating time to next stop:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Calculate remaining time using OSRM route data
-     */
-    async calculateTimeRemaining(remainingDistance) {
-        if (!this.tripData.isActive || !this.tripData.startTime) {
-            return null;
-        }
-
-        try {
-            // Get current position
-            const currentPosition = window.geolocationManager.getCurrentPositionSync();
-            if (!currentPosition) {
-                return null;
-            }
-
-            // Get fresh route info from current position to destination
-            const currentToDestination = await window.geolocationManager.getRouteInfo(
-                currentPosition,
-                this.tripData.destination
-            );
-
-            if (!currentToDestination || !currentToDestination.duration) {
-                return null;
-            }
-
-            // Use the duration directly from OSRM
-            const timeRemaining = currentToDestination.duration; // minutes
-            
-            // Format time remaining
-            if (timeRemaining >= 60) {
-                const hours = Math.floor(timeRemaining / 60);
-                const minutes = Math.round(timeRemaining % 60);
-                if (hours >= 2) {
-                    return `${hours} uur`;
-                } else {
-                    return `${hours}u ${minutes}m`;
-                }
-            } else {
-                const minutes = Math.round(timeRemaining);
-                return `${minutes} min`;
-            }
-        } catch (error) {
-            console.error('Error calculating remaining time:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Update status message with fun Dutch content
-     */
-    updateStatus(progressPercentage, remainingDistance) {
-        const statusCard = document.getElementById('status-card');
-        if (!statusCard) return;
-
-        const statusIcon = statusCard.querySelector('.status-icon');
-        const statusText = statusCard.querySelector('.status-text');
-
-        if (remainingDistance <= 0.5) {
-            statusIcon.textContent = '🎉';
-            statusText.textContent = this.getFunnyStatus('arrival');
-        } else if (remainingDistance <= 5) {
-            statusIcon.textContent = '🏁';
-            statusText.textContent = this.getFunnyStatus('near', remainingDistance);
-        } else if (remainingDistance <= 20) {
-            statusIcon.textContent = '🚗';
-            statusText.textContent = this.getFunnyStatus('close', remainingDistance);
+    formatTime(minutes) {
+        if (minutes < 0) return '--:--';
+        
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${mins.toString().padStart(2, '0')}`;
         } else {
-            statusIcon.textContent = '🛣️';
-            statusText.textContent = this.getFunnyStatus('far', remainingDistance);
+            return `${mins} min`;
         }
     }
 
     /**
-     * Get funny status messages in Dutch
+     * Save trip data to storage
      */
-    getFunnyStatus(type, distance = 0) {
-        const messages = {
-            arrival: [
-                '🎉 Je bent er! Welkom op je bestemming!',
-                '🎊 Gefeliciteerd! Je hebt de reis voltooid!',
-                '🏆 Achievement unlocked: Reis voltooid!',
-                '🎯 Bullseye! Je bent aangekomen!',
-                '🌟 Super! Je bent er eindelijk!'
-            ],
-            near: [
-                `🏁 Bijna daar! Nog ${distance.toFixed(1)} km te gaan!`,
-                `🎯 Zo dichtbij! Nog ${distance.toFixed(1)} km!`,
-                `⚡ Bijna klaar! Nog ${distance.toFixed(1)} km!`,
-                `🎪 Bijna in de circus! Nog ${distance.toFixed(1)} km!`,
-                `🍕 Pizza is bijna klaar! Nog ${distance.toFixed(1)} km!`
-            ],
-            close: [
-                `🚗 Nog ${distance.toFixed(1)} km te gaan!`,
-                `🎮 Level bijna voltooid! Nog ${distance.toFixed(1)} km!`,
-                `🎵 Bijna bij het refrein! Nog ${distance.toFixed(1)} km!`,
-                `🍦 IJsje bijna bereikt! Nog ${distance.toFixed(1)} km!`,
-                `🎨 Schilderij bijna af! Nog ${distance.toFixed(1)} km!`
-            ],
-            far: [
-                `🛣️ Reis in volle gang! Nog ${distance.toFixed(1)} km`,
-                `🎪 Nog een hele circus te gaan! ${distance.toFixed(1)} km`,
-                `🏰 Kasteel in zicht! Nog ${distance.toFixed(1)} km`,
-                `🚀 Raket onderweg! Nog ${distance.toFixed(1)} km`,
-                `🐉 Draak verslaan! Nog ${distance.toFixed(1)} km`
-            ]
-        };
-
-        const typeMessages = messages[type] || messages.far;
-        return typeMessages[Math.floor(Math.random() * typeMessages.length)];
-    }
-
-    /**
-     * Check for achievements and play sounds
-     */
-    checkAchievements(progressPercentage, remainingDistance) {
-        // Achievement milestones
-        const milestones = [10, 25, 50, 75, 90];
-        
-        if (milestones.includes(Math.floor(progressPercentage))) {
-            this.showAchievement(progressPercentage);
-        }
-
-        // Distance milestones
-        if (remainingDistance <= 1 && remainingDistance > 0.5) {
-            this.showAchievement('final');
+    saveTripData() {
+        if (this.tripData && window.storageManager) {
+            window.storageManager.saveTripData(this.tripData);
         }
     }
 
     /**
-     * Show achievement notification
+     * Load trip data from storage
+     * @returns {Object|null} Loaded trip data or null
      */
-    showAchievement(type) {
-        const achievements = {
-            10: '🎯 10% voltooid! Je bent op weg!',
-            25: '🎮 Kwart van de reis! Goed bezig!',
-            50: '🎪 Halverwege! Je bent een held!',
-            75: '🏆 Bijna klaar! Je kunt het!',
-            90: '⚡ Zo dichtbij! Laatste sprint!',
-            final: '🎊 Bijna daar! Laatste meters!'
-        };
-
-        const message = achievements[type] || '🎉 Achievement unlocked!';
-        
-        // Update status with achievement
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '🏆';
-            statusText.textContent = message;
-            
-            // Reset after 3 seconds
-            setTimeout(() => {
-                const currentProgress = (this.tripData.distanceTraveled / this.tripData.totalDistance) * 100;
-                const currentRemaining = this.tripData.totalDistance - this.tripData.distanceTraveled;
-                this.updateStatus(currentProgress, currentRemaining);
-            }, 3000);
-        }
-    }
-
-    /**
-     * Complete the trip
-     */
-    async completeTrip() {
-        this.tripData.isActive = false;
-        window.geolocationManager.stopTracking();
-
-        if (this.onTripComplete) {
-            this.onTripComplete(this.tripData);
-        }
-
-        // Update status to completion
-        this.updateStatus(100, 0);
-    }
-
-    /**
-     * Stop the current trip
-     */
-    stopTrip() {
-        this.tripData.isActive = false;
-        window.geolocationManager.reset(); // Reset all geolocation state
-    }
-
-    /**
-     * Update next stop with new address
-     */
-    async updateNextStop(nextStopAddress) {
-        if (!this.tripData.isActive) {
-            throw new Error('Geen actieve reis bezig');
-        }
-
-        try {
-            // Get current position as new origin for next stop
-            const currentPosition = await window.geolocationManager.getCurrentPosition();
-            
-            console.log('🔍 DEBUG - updateNextStop: Using current position as new origin:', {
-                lat: currentPosition.lat,
-                lng: currentPosition.lng
-            });
-            
-            // Geocode the new next stop
-            const nextStop = await window.geolocationManager.geocodeAddress(nextStopAddress);
-            
-            console.log('🔍 DEBUG - updateNextStop: New next stop geocoded:', {
-                address: nextStopAddress,
-                lat: nextStop.lat,
-                lng: nextStop.lng
-            });
-            
-            // Get route information for next stop using OSRM
-            const nextStopRouteInfo = await window.geolocationManager.getRouteInfo(currentPosition, nextStop);
-            
-            console.log('🔍 DEBUG - updateNextStop: New route info:', {
-                distance: nextStopRouteInfo.distance + ' km',
-                duration: nextStopRouteInfo.duration + ' min'
-            });
-            
-            // Update trip data
-            this.tripData.nextStop = nextStop;
-            this.tripData.nextStopOrigin = currentPosition;
-            this.tripData.nextStopRouteInfo = nextStopRouteInfo; // Store OSRM data for next stop
-            
-            // Reset next stop progress bar to 0% since we're starting from new origin
-            const progressFillNextStop = document.getElementById('progress-fill-nextstop');
-            const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
-            
-            if (progressFillNextStop && progressIndicatorNextStop) {
-                progressFillNextStop.style.height = '0%';
-                progressIndicatorNextStop.style.bottom = '0%';
-                console.log('🔍 DEBUG - updateNextStop: Progress bar reset to 0%');
+    loadTripData() {
+        if (window.storageManager) {
+            const tripData = window.storageManager.loadTripData();
+            if (tripData) {
+                this.tripData = tripData;
+                this.updateDisplay();
+                this.updateNextStopVisibility();
+                return tripData;
             }
-            
-            // Update display to show the reset progress
-            this.updateNextStopProgress();
-            
-            // Also update the main display to refresh the next stop time calculation
-            this.updateDisplay();
-            
-            // Force update of the main display to refresh next stop time
-            const syncPosition = window.geolocationManager.getCurrentPositionSync();
-            if (syncPosition) {
-                this.updateProgress(syncPosition);
-            }
-            
-            return this.tripData;
-            
-        } catch (error) {
-            console.error('Error updating next stop:', error);
-            throw error;
         }
+        return null;
     }
 
     /**
-     * Reset all trip data
+     * Reset trip data
      */
     resetTrip() {
-        this.tripData = {
-            origin: null,
-            destination: null,
-            nextStop: null,
-            startTime: null,
-            totalDistance: 0,
-            distanceTraveled: 0,
-            isActive: false,
-            routeInfo: null,
-            speedHistory: [],
-            lastUpdateTime: null
+        this.tripData = null;
+        this.currentPosition = null;
+        this.stopPeriodicUpdates();
+        
+        // Reset display
+        this.resetDisplay();
+        
+        // Clear storage
+        if (window.storageManager) {
+            window.storageManager.clearTripData();
+        }
+    }
+
+    /**
+     * Reset display to initial state
+     */
+    resetDisplay() {
+        // Reset progress bars
+        if (this.elements.progressFillDestination) {
+            this.elements.progressFillDestination.style.width = '0%';
+        }
+        if (this.elements.progressFillNextStop) {
+            this.elements.progressFillNextStop.style.width = '0%';
+        }
+
+        // Reset statistics
+        if (this.elements.remainingTime) this.elements.remainingTime.textContent = '--:--';
+        if (this.elements.traveledDistance) this.elements.traveledDistance.textContent = '0 km';
+        if (this.elements.progress) this.elements.progress.textContent = '0%';
+        if (this.elements.remainingDistance) this.elements.remainingDistance.textContent = '0 km';
+        if (this.elements.nextStopTime) this.elements.nextStopTime.textContent = '--:--';
+
+        // Hide next stop elements
+        this.updateNextStopVisibility();
+    }
+
+    /**
+     * Get current trip status
+     * @returns {Object} Trip status information
+     */
+    getTripStatus() {
+        return {
+            isActive: !!this.tripData,
+            tripData: this.tripData,
+            currentPosition: this.currentPosition,
+            lastUpdateTime: this.lastUpdateTime,
+            hasNextStop: !!(this.tripData && this.tripData.nextStop)
         };
-        window.geolocationManager.reset(); // Reset all geolocation state
     }
 
     /**
-     * Reset status to initial state
+     * Set geolocation manager reference
+     * @param {GeolocationManager} geolocationManager - Geolocation manager instance
      */
-    resetStatus() {
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '📍';
-            statusText.textContent = 'Klaar om te beginnen!';
-        }
-
-        // Reset destination progress bar
-        const progressFillDestination = document.getElementById('progress-fill-destination');
-        const progressIndicatorDestination = document.getElementById('progress-indicator-destination');
-        
-        if (progressFillDestination) progressFillDestination.style.height = '0%';
-        if (progressIndicatorDestination) progressIndicatorDestination.style.bottom = '0%';
-
-        // Reset next stop progress bar
-        const progressFillNextStop = document.getElementById('progress-fill-nextstop');
-        const progressIndicatorNextStop = document.getElementById('progress-indicator-nextstop');
-        
-        if (progressFillNextStop) progressFillNextStop.style.height = '0%';
-        if (progressIndicatorNextStop) progressIndicatorNextStop.style.bottom = '0%';
-
-        // Hide next stop progress bar
-        const nextStopProgress = document.getElementById('next-stop-progress');
-        if (nextStopProgress) {
-            nextStopProgress.classList.remove('visible');
-        }
-
-        // Reset distance info
-        const remainingDistanceEl = document.getElementById('remaining-distance');
-        const distanceTraveledEl = document.getElementById('traveled-distance');
-        const progressPercentageEl = document.getElementById('progress');
-        const timeRemainingEl = document.getElementById('remaining-time');
-
-        if (remainingDistanceEl) remainingDistanceEl.textContent = '-- km';
-        if (distanceTraveledEl) distanceTraveledEl.textContent = '-- km';
-        if (progressPercentageEl) progressPercentageEl.textContent = '0%';
-        if (timeRemainingEl) timeRemainingEl.textContent = '--:--';
-        
-        // Reset next stop time
-        const nextStopTimeEl = document.getElementById('next-stop-time');
-        if (nextStopTimeEl) nextStopTimeEl.textContent = '--:--';
+    setGeolocationManager(geolocationManager) {
+        this.geolocationManager = geolocationManager;
     }
 
     /**
-     * Handle location errors
+     * Get achievement progress (for future use)
+     * @returns {Object} Achievement progress data
      */
-    handleLocationError(error) {
-        console.error('Location tracking error:', error);
-        
-        const statusCard = document.getElementById('status-card');
-        if (statusCard) {
-            const statusIcon = statusCard.querySelector('.status-icon');
-            const statusText = statusCard.querySelector('.status-text');
-            
-            statusIcon.textContent = '⚠️';
-            statusText.textContent = 'Locatie probleem: ' + error.message;
-        }
-    }
+    getAchievementProgress() {
+        if (!this.tripData) return {};
 
-    /**
-     * Get current trip data
-     */
-    getTripData() {
-        return { ...this.tripData };
-    }
+        const traveledDistance = this.tripData.traveledDistance || 0;
+        const progressPercentage = this.tripData.progressPercentage || 0;
 
-    /**
-     * Check if trip is active
-     */
-    isTripActive() {
-        return this.tripData.isActive;
-    }
-
-    /**
-     * Set progress update callback
-     */
-    setProgressCallback(callback) {
-        this.onProgressUpdate = callback;
-    }
-
-    /**
-     * Set trip complete callback
-     */
-    setTripCompleteCallback(callback) {
-        this.onTripComplete = callback;
-    }
-
-    setTripData(origin, destination, nextStop = null) {
-        this.tripData = {
-            origin,
-            destination,
-            nextStop,
-            nextStopOrigin: nextStop ? origin : null,
-            nextStopRouteInfo: null,
-            startTime: Date.now(),
-            totalDistance: 0, // This will be set by startTrip
-            distanceTraveled: 0, // This will be set by updateProgress
-            isActive: true,
-            routeInfo: null, // This will be set by startTrip
-            speedHistory: [], // This will be set by updateProgress
-            lastUpdateTime: Date.now()
+        return {
+            distanceMilestones: {
+                '5km': traveledDistance >= 5,
+                '10km': traveledDistance >= 10,
+                '25km': traveledDistance >= 25,
+                '50km': traveledDistance >= 50,
+                '100km': traveledDistance >= 100
+            },
+            progressMilestones: {
+                '25%': progressPercentage >= 25,
+                '50%': progressPercentage >= 50,
+                '75%': progressPercentage >= 75,
+                '90%': progressPercentage >= 90,
+                '100%': progressPercentage >= 100
+            }
         };
-        if (window.app) {
-            window.app.updateNextStopVisibility();
-        }
     }
 }
 
-// Create global instance
-window.progressTracker = new ProgressTracker();
-
- 
+// Export for use in other modules
+window.ProgressTracker = ProgressTracker; 
